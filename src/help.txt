@@ -1,2 +1,27 @@
-This information is displayed with the HELP and INFO monitor commands.
-Please change it to suit your project.
+RP MEGA CHOPPER II: OPERATION NORTHERN LIGHTS
+Tactical Choplifter-style helicopter rescue mission for the Picocomputer 6502.
+
+                 Keyboard       Gamepad
+Move / Altitude  Arrows / WASD  D-pad / Left Stick
+Fire / Bomb      Z / J / Space  Button A (or R1)
+Rotate / Turn    X / K / C      Button B (or C / X / L1)
+Start Game       Enter / P      Start / Select
+
+MISSION OBJECTIVES:
+1. Pilot your SuperChopper across the Arctic frontier.
+2. Rotate to face front (Rotate button) and drop bombs onto reinforced
+   bunker doors marked with targeting crosshairs.
+3. Land gently on the snow (Down arrow until speed is 0) to allow hostages
+   to run toward and board your helicopter.
+4. Your cargo hold carries a maximum of 16 hostages at a time.
+5. Evacuate hostages back to the Canadian Home Base medical outpost at the
+   far left of the sector (near the Maple Leaf flag) and land to unload them.
+6. Rescue all sector hostages to clear the mission!
+
+COMBAT INTEL:
+- Vulcan Cannon: Fires straight ahead when facing Left or Right.
+- Precision Bombs: Released when facing Front. Drops with chopper momentum.
+- Heavy Tanks: Patrol compounds; turn turrets and fire flak shells upwards.
+- Interceptor Jets: Screaming high-speed flybys at high altitude.
+- Drone Balloons: Drifting mine balloons guarding compound airspace.
+- Don't crush waving hostages with careless landings or friendly fire!

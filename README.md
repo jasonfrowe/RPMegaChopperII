@@ -1,100 +1,151 @@
-# RP6502 Project Template
+# RP Mega Chopper II: Operation Northern Lights
 
-Scaffolding for a new Picocomputer 6502 software project, in C with
-either 6502 compiler, cc65 or llvm-mos, or in BASIC. The CMake preset
-sets the language: the `cc65` and `llvm-mos` presets build the C program,
-and the `basic` preset builds the BASIC program. Each program is "Hello,
-world!".
+[![Picocomputer 6502](https://img.shields.io/badge/Platform-Picocomputer%206502-blue.svg)](https://picocomputer.github.io/)
+[![Compiler](https://img.shields.io/badge/Compiler-llvm--mos-green.svg)](https://llvm-mos.org/)
+[![Sound](https://img.shields.io/badge/Audio-Yamaha%20OPL2%20(YM3812)-orange.svg)](https://picocomputer.github.io/)
 
-`src/main.c` is the C program, which builds with either compiler:
+A fast-paced tactical helicopter rescue game for the **Picocomputer 6502**, sequel to *RPMegaChopper*.
 
-```c
-#include <rp6502.h>
-#include <stdio.h>
-#include "xram.h"
+Built from the ground up utilizing the modern RP6502 SDK, **RP Mega Chopper II** takes full advantage of the Picocomputer's hardware capabilities:
+* **Mode 5 Custom 4bpp Sprites**: Multi-frame animated sprites with native custom dimensions (32×16 SuperChopper, 40×16 patrolling Heavy Tanks, 32×16 Supersonic Jets, 16×32 Drone Balloons, 16×16 Hostages, Canadian Maple Leaf flags, weakpoint target reticles, and particle explosions).
+* **Mode 2 Parallax Scrolling**: Dual-layer 4bpp tilemaps spanning a 4,096-pixel world. Plane 0 scrolls distant snowy peaks and aurora skies at 3/8 speed; Plane 1 renders the snowbanks, pine forests, medical camps, and enemy compounds with horizontal wrap-around.
+* **Top Status HUD**: Plane 2 overlay featuring real-time Score, Saved Hostages, Cargo count (`00/16`), Casualties Lost, Spare Choppers, and a dynamic 22-character tactical Radar / Compass.
+* **Yamaha OPL2 Sound & Music**: True 9-channel FM synthesis audio engine powered by the `xreg_ria_opl` soundcard. Features custom VGM streaming (with an iconic driving 16th-note **Airwolf** galloping synth bass and brass lead) plus prioritized polyphonic sound effects (rotor engine, vulcan fire, falling bombs, tank shells, jet flybys, compound breaches, and hostage rescue chimes).
 
-int main(void)
-{
-    puts("Hello, world!");
-}
+---
+
+## Story & Mission: Operation Northern Lights
+
+Deep in the frozen Northern Arctic frontier, hostile forces have captured allied researchers and soldiers across heavily fortified compound bunkers. 
+
+As pilot of the experimental **SuperChopper**, your mission is to:
+1. Infiltrate enemy territory across a 4,096-pixel hostile corridor.
+2. Bomb the reinforced blast doors of enemy bunkers to free hostages trapped inside.
+3. Land safely on the snowbanks so freed hostages can reach and board your transport hold.
+4. Ferry hostages back to the Canadian Home Base medical station at the western perimeter.
+5. Evacuate every hostage without letting enemy armor, jet fighters, or anti-air flak destroy your aircraft or slaughter the fleeing survivors!
+
+---
+
+## Controls
+
+| Action | Keyboard | Gamepad |
+| :--- | :--- | :--- |
+| **Move / Altitude** | Arrow Keys / `W`, `A`, `S`, `D` | D-Pad / Left Analog Stick |
+| **Fire Vulcan / Drop Bomb** | `Z`, `J`, or `Space` | Button **A** / **R1** |
+| **Rotate Facing (L / Front / R)** | `X`, `K`, or `C` | Button **B** / **C** / **X** / **L1** |
+| **Start / Pause** | `Enter` / `P` | **Start** / **Select** |
+
+### Flight & Combat Tactics
+* **Vulcan Cannon**: When facing **Left** or **Right**, primary fire shoots high-velocity auto-cannon rounds horizontally to neutralize aerial drones, incoming jets, and enemy tanks.
+* **Precision Bombing**: Press **Rotate** to orient your chopper facing **Front** toward the screen. Primary fire now drops free-fall aerial bombs inheriting the chopper's horizontal velocity. Bombs detonate on ground contact, destroying tanks and breaching reinforced compound blast doors.
+* **Hostage Boarding**: Come to a full landing on ground snow (`chopper_y >= GROUND_Y` with horizontal velocity = 0). Waving hostages will immediately sprint toward your chopper and climb aboard.
+* **Cargo Capacity**: Your cargo bay holds up to **16 hostages**. If full, you must fly back to Home Base to disembark survivors before rescuing more.
+* **Home Base Disembarkation**: Land near the Canadian flag and medical tents at the western end of the sector ($X < 360$). Hostages will exit the helicopter and run inside the medical shelter, earning rescue bonus points.
+
+---
+
+## Tactical Radar Display
+
+The top status bar incorporates a horizontal real-time radar strip:
+```text
+SCORE:000000 SAVED:00 CARGO:00/16 LOST:00 [H  .  .  .  ^  .  .  ] x3
 ```
+* `H`: Canadian Home Base / Medical Outposts
+* `.`: Compound Bunkers (blinks when breached)
+* `^`: SuperChopper position and flight vector
+* `*`: Hostages running on foot in the snow
 
-`src/main-cc65.s` and `src/main-llvm-mos.s` are assembly for that C.
-To start an assembly language project, replace `src/main.c` in
-`CMakeLists.txt` with the version for the assembler you will use.
+---
 
-`src/main.bas` is the BASIC program. `rp6502_basic()` packages it with
-a BASIC ROM into `hello.rp6502`, and BASIC runs it at start:
+## Building from Source
 
-```basic
-10 PRINT "Hello, world!"
-```
+### Prerequisites
+* **CMake** 3.28 or newer
+* **Python** 3.8+
+* **llvm-mos** compiler installed (default: `~/.rp6502/llvm-mos/bin`)
+* **Furnace tracker CLI** (optional, for regenerating VGM sound tracks)
 
-<!-- rp6502
-preset: basic
-publish: hello.zip
--->
-[![Hello, world!](https://picocomputer.github.io/rp6502-sdk/hello/screenshot.png)](https://picocomputer.github.io/rp6502-sdk/hello/)
-
-[Run it in your browser](https://picocomputer.github.io/rp6502-sdk/hello/),
-BASIC is usable. Type `10` then TAB to edit line 10. `RUN` to run.
-
-On each push to `main`, `.github/workflows/web.yml` publishes this web
-player and its screenshot to GitHub Pages. The `preset` in the `rp6502`
-comment above the picture sets the program it plays: `basic` for the
-BASIC program, or a `cc65/Release` or `llvm-mos/Release` preset for the
-C program. To publish yours, open Settings > Pages on GitHub and set
-Source to GitHub Actions.
-
-The `if()` in `CMakeLists.txt` has a branch for each language. Keep the
-branch you want, delete the other and the `if()`, and delete the presets
-and files you do not use. Set the `preset` in the `rp6502` comment to a
-preset you keep.
-
-### Requirements:
- * CMake 3.28 or newer
- * Python 3
- * Make or Ninja
- * [cc65 or llvm-mos](https://github.com/picocomputer?view_as=public), for
-   C. Install both if you want to try both.
-
-The install steps for Windows, macOS and Linux are in
-[RP6502-SDK](https://picocomputer.github.io/sdk.html#sdk-install), along with
-the rest of the SDK documentation.
-
-### Use the template:
-Go to the [GitHub template](https://github.com/picocomputer/rp6502-sdk) and
-select "Use this template" then "Create a new repository". Don't fork it: a
-fork stays linked to this repository and includes its history, while "Use this
-template" makes a new repository with a clean history. Then clone the new
-repository.
-
-### Updating the tools:
-`tools/` holds the CMake and Python scripts that the SDK runs. Update them with
-the "RP6502: update tools" task (Terminal > Run Task), or with:
+### Compiling
+Configure and build with CMake using the provided presets:
 
 ```bash
-$ cmake -P tools/rp6502.cmake
+# Configure Release build
+cmake --preset llvm-mos/Release
+
+# Build executable ROM and Web package
+cmake --build --preset llvm-mos/Release
 ```
 
-### Updating an older project:
-Projects made before this template merged cc65 and llvm-mos have their compiler
-wired into the top of `CMakeLists.txt`, and a `tools/` that predates any of
-this. Start by copying this template's `tools/rp6502.cmake` over yours. That
-name used to be the cc65 toolchain file; it is now the small script that
-fetches everything, and the toolchain it replaces comes back as
-`tools/cc65-toolchain.cmake` on the first configure.
+Output files will be generated in `build/llvm-mos/release/`:
+* `RPMegaChopperII.rp6502`: Executable ROM image for real Picocomputer 6502 hardware or SD card.
+* `RPMegaChopperII.elf`: Debug ELF binary with symbols.
+* `web/RPMegaChopperII.zip`: Web player package ready for browser deployment via GitHub Pages.
 
-Then replace everything above `project()` with:
+---
 
-```cmake
-cmake_minimum_required(VERSION 3.28)
+## Headless Testing & Emulation
 
-include(${CMAKE_CURRENT_LIST_DIR}/tools/rp6502.cmake)
+The repository includes test tools and the `rp6502-emu` emulator:
+
+```bash
+# Run 60 frames headlessly and capture screenshot
+tools/rp6502-emu build/llvm-mos/release/RPMegaChopperII.rp6502 --frames 60 --screenshot /tmp/screen.png --mute
+
+# Run automated flight playtest script verifying 60 Hz frame synchronization:
+python3 tools/playtest.py flight --out /tmp/flight_test
 ```
 
-Delete `tools/CMakeLists.txt` and the `add_subdirectory(tools)` line that
-pulled it in — the `include()` above replaces both. Copy `CMakePresets.json`
-from this template as well; that is where the compiler is chosen now. Old
-projects called `rp6502_executable()` with the address their compiler happened
-to use, and `DATA default RESET default` works under both.
+---
+
+## Project Structure
+
+```
+RPMegaChopperII/
+├── CMakeLists.txt              # Build configuration & asset conversion rules
+├── CMakePresets.json           # llvm-mos and toolchain presets
+├── README.md                   # This documentation
+├── gtools/                     # Generation tools (musicgen, gen_art, gen_sfx)
+│   ├── gen_art.py              # Pure Python 4bpp sprite & Mode-2 tilemap generator
+│   ├── gen_sfx.py              # OPL2 FM sound effect bank synthesizer
+│   └── musicgen/               # Airwolf & arcade style VGM generator
+├── images/                     # Generated 4bpp sprite PNGs, maps, and palettes
+│   ├── chopper.png             # 32x16 SuperChopper sprite sheet (22 frames)
+│   ├── tank.png                # 40x16 Heavy Tank sprite sheet (6 frames)
+│   ├── jet.png                 # 32x16 Fighter Jet sprite sheet (2 frames)
+│   ├── balloon.png             # 16x32 Drone Balloon sheet (3 frames)
+│   ├── hostages.png            # 16x16 Hostage sprites (10 frames)
+│   ├── bg_tiles.png            # Parallax background tiles
+│   ├── fg_tiles.png            # Foreground terrain & compound tiles
+│   ├── bg_map.bin / fg_map.bin # 256x15 Mode-2 world maps
+│   └── palettes.bin            # 16 RGB555 4bpp palettes
+├── music/                      # OPL2 VGM streaming tracks & sfx.bin
+│   ├── Stage1.vgm              # Airwolf style stage music
+│   ├── Title.vgm               # Title theme
+│   ├── Victory.vgm             # Sector clear theme
+│   ├── Gameover.vgm            # Game over theme
+│   └── sfx.bin                 # OPL2 synthesized sound effects
+├── src/                        # 6502 C Game Source Code
+│   ├── main.c                  # Main game loop, states & vsync timing
+│   ├── xram.h                  # RIA XRAM memory map and hardware registers
+│   ├── game.h                  # Physics constants and world metrics
+│   ├── player.c / .h           # Chopper flight mechanics, bombing & landing
+│   ├── compounds.c / .h        # Compound bunkers, targeting reticles & breach
+│   ├── hostages.c / .h         # Hostage AI, panic, boarding & rescue states
+│   ├── enemies.c / .h          # Tanks, Jets, Drone balloons & flag animation
+│   ├── projectiles.c / .h      # Bullets, bombs, flak shells & explosions
+│   ├── sprites.c / .h          # Mode 5 custom 4bpp sprite manager
+│   ├── bg.c / .h               # Mode 2 parallax scrolling and blast door destruction
+│   ├── hud.c / .h              # Plane 2 status bar and tactical radar
+│   ├── input.c / .h            # Keyboard and USB gamepad polling
+│   ├── opl.c / .h              # Low-level Yamaha OPL2 hardware register I/O
+│   ├── vgm.c / .h              # ROM streaming VGM background music player
+│   └── sfx.c / .h              # Polyphonic OPL2 FM sound effect player
+└── tools/                      # RP6502 toolchain, emulator & conversion utilities
+```
+
+---
+
+## License
+
+Picocomputer 6502 software and SDK are licensed under open-source terms. See individual source files for copyright details.

@@ -41,6 +41,9 @@
             "description": "llvm-mos, with debug information",
             "inherits": "base",
             "binaryDir": "${sourceDir}/build/llvm-mos/debug",
+            "environment": {
+                "PATH": "$penv{PATH}:$penv{HOME}/.rp6502/llvm-mos/bin"
+            },
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "LLVM_MOS_PLATFORM": "rp6502"
@@ -52,6 +55,9 @@
             "description": "llvm-mos, optimized",
             "inherits": "base",
             "binaryDir": "${sourceDir}/build/llvm-mos/release",
+            "environment": {
+                "PATH": "$penv{PATH}:$penv{HOME}/.rp6502/llvm-mos/bin"
+            },
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "LLVM_MOS_PLATFORM": "rp6502"
