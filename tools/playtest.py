@@ -39,7 +39,7 @@ def le(v, n=4):
 
 
 # World x to land at on the home helipad (see src/gen/assets.h).
-HOME_X = 3988
+HOME_X = 3924
 
 
 # Put the chopper at world (x, y), hovering, with the camera on it.

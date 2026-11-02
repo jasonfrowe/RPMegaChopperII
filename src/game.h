@@ -41,10 +41,12 @@
 #define BUNKER_X1(i) ((int16_t)(compound_cols[i] + 9) * 16)
 #define BUNKER_TOP (GROUND_LINE - 58)
 
-/* Tank flak: the arc tops out around screen row FLAK_CEILING, so flying
- * above that is safe from the tanks (but the jets come for you). */
+/* Tank shells fall back under this gravity (subpixels per frame, each
+ * frame), so they can't reach a chopper flying high. */
 #define FLAK_GRAVITY 2
-#define FLAK_CEILING 80
+
+/* A bomb dropped from more than this above landed height reaches tank depth. */
+#define BOMB_DEEP_HEIGHT 60
 
 /* East of this nothing attacks: the home base is safe, as in Choplifter.
  * Halfway between the last prison and the helipad. */

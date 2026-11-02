@@ -115,10 +115,10 @@ static const uint8_t compound_cols[NUM_COMPOUNDS] = {18, 75, 138, 196};
 #define DOOR_COL 5
 #define DOOR_W 2
 #define DOOR_H 2
-#define HOME_PAD_X0 3936
-#define HOME_PAD_X1 4096
-#define HOME_DOOR_X 3832
-#define FLAG_X 3909
+#define HOME_PAD_X0 3904
+#define HOME_PAD_X1 3984
+#define HOME_DOOR_X 3880
+#define FLAG_X 4021
 #define FLAG_Y 118
 
 /* The door's tiles (and the row above it, with the warning lamp),
@@ -126,8 +126,8 @@ static const uint8_t compound_cols[NUM_COMPOUNDS] = {18, 75, 138, 196};
 #define DOOR_TILE_ROWS 3
 static const uint8_t door_intact[DOOR_TILE_ROWS][DOOR_W] = {
     {33, 34},
-    {70, 71},
-    {113, 114},
+    {71, 72},
+    {114, 115},
 };
 static const uint8_t door_breached[DOOR_TILE_ROWS][DOOR_W] = {
     {186, 187},

@@ -100,9 +100,11 @@ static void fire(void)
     int16_t px = FROM_SUB(chopper_world_x);
     int16_t py = FROM_SUB(chopper_y);
     if (chopper_heading == FACING_FRONT) {
-        bomb_spawn(px + CHOPPER_W / 2 - 4, py + CHOPPER_H - 4, chopper_vel_x);
+        /* One bomb at a time, one per press. */
+        if (!(in_pressed & IN_FIRE) || bomb_in_air())
+            return;
+        bomb_spawn(px + CHOPPER_W / 2 - 4, py + CHOPPER_H - 8, chopper_y < GROUND_Y_SUB - TO_SUB(BOMB_DEEP_HEIGHT));
         sfx_player(SFX_BOMB_DROP, SFX_PRI_EVENT);
-        fire_cooldown = 18;
         return;
     }
     /* The cannon points where the nose does: down while speeding up,

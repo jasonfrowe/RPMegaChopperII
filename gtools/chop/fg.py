@@ -30,10 +30,10 @@ DOOR_H = 2
 # Home base, at the east end: hangar, flag, then the helipad against the
 # world's edge. All of it is the last screen of the world (from column
 # 236), where the camera stops, so the hangar is in view from the pad.
-HANGAR_COL = 236                    # 8 columns wide
-FLAG_COL = 244
-PAD_COL0, PAD_COL1 = 246, 256       # helipad, columns [PAD_COL0, PAD_COL1)
-HANGAR_DOOR_X = (HANGAR_COL + 3) * T + 8
+HANGAR_COL = 236                    # 8 columns wide, its door at the east end
+PAD_COL0, PAD_COL1 = 244, 249       # helipad, columns [PAD_COL0, PAD_COL1), by the door
+FLAG_COL = 251
+HANGAR_DOOR_X = (HANGAR_COL + 6) * T + 8
 
 
 class Canvas:
@@ -350,12 +350,12 @@ def hangar(c: Canvas, rng):
     for x in range(x0 + 18, x1 - 4, 18):
         c.rect(x, wall + 3, x + 1, SURF, 4)
     # Red cross sign.
-    cx, cy = x0 + 100, wall + 6
+    cx, cy = x0 + 40, wall + 6
     c.box(cx, cy, cx + 20, cy + 20, 6, dark=4)
     c.rect(cx + 8, cy + 3, cx + 12, cy + 17, 14)
     c.rect(cx + 3, cy + 8, cx + 17, cy + 12, 14)
     # Lit windows.
-    for wx in (x0 + 8, x0 + 76):
+    for wx in (x0 + 14, x0 + 70):
         c.box(wx, wall + 8, wx + 14, wall + 18, 1)
         c.rect(wx + 1, wall + 9, wx + 13, wall + 17, 15)
         c.rect(wx + 1, wall + 13, wx + 13, wall + 14, 13)

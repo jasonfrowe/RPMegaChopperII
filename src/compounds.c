@@ -16,7 +16,7 @@ void compounds_init(void)
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
         compounds[i].breached = false;
         compounds[i].hostages_remaining = HOSTAGES_PER_COMPOUND;
-        compounds[i].spawn_timer = 30;
+        compounds[i].spawn_timer = 45;
     }
     bg_reset_doors();
 }
@@ -39,11 +39,10 @@ void compounds_update(void)
             c->spawn_timer--;
             continue;
         }
+        /* One every 45 frames, once the doorway is clear. */
         if (hostages_spawn(i, DOOR_X(i) + DOOR_W * 8)) {
             c->hostages_remaining--;
-            c->spawn_timer = 36;
-        } else {
-            c->spawn_timer = 10; /* the door is crowded; try again soon */
+            c->spawn_timer = 45;
         }
     }
 }
@@ -51,7 +50,7 @@ void compounds_update(void)
 static void breach(uint8_t i)
 {
     compounds[i].breached = true;
-    compounds[i].spawn_timer = 40;
+    compounds[i].spawn_timer = 45;
     bg_breach_door(i);
     explosion_spawn(DOOR_X(i) + DOOR_W * 8, DOOR_TOP + 14, true);
     small_explosion_spawn(DOOR_X(i) + 4, DOOR_TOP + 8);

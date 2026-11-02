@@ -45,14 +45,14 @@ As pilot of the experimental **SuperChopper**, your mission is to:
 | **Start / pause** | `Enter` / `P` | **Start** / **Select** |
 
 ### How to play
-* **Open the prisons.** Each of the four compounds has a blast door marked with a red target. Shoot it, or turn to face the screen and drop a bomb on it.
+* **Open the prisons.** Each of the four compounds has a blast door marked with a red target. Shoot it, or turn to face the screen and drop a bomb on it. Bombs fall straight down, one at a time.
 * **The cannon aims with the nose.** Speeding up tips the nose down and the tracers go down with it, which is how you hit doors and tanks; braking tips it up.
-* **Pick them up.** Land near the freed hostages and they run to the chopper and climb aboard, 16 at most. Don't come down on top of them.
-* **Bring them home.** Land on the helipad at the east end, by the flag, and they run into the medical station. Each one saved is 250 points.
-* **Watch out.** The enemy follows Choplifter's rules:
-  * **Tanks** turn up once the rescue is under way, two from each prison's garage, rolling in at the prison you are working. Your cannon just glances off them: **only bombs destroy a tank**. Their flak arcs up and falls back, so it can't reach you up high, but shells coming down can hit hostages.
-  * A **mine balloon** drifts after you once enough hostages are out. Shoot it down.
-  * **Jets** come later still. Sit on the ground too long and one comes to bomb you; stay up high too long and one comes to shoot you.
+* **Pick them up.** Freed hostages spread out in front of their prison. Come in low and they run for the chopper; land and they climb aboard, 16 at most. Don't come down on top of them.
+* **Bring them home.** Land on the helipad by the medical station at the east end. They get off one at a time and run inside. Each one saved is 250 points.
+* **Watch out.** The enemy follows the original game's rules (written up in [`docs/ORIGINAL_GAMEPLAY.md`](docs/ORIGINAL_GAMEPLAY.md)):
+  * **Tanks** turn up once 4 hostages are aboard or saved, two at a time from the prison you are nearest, and keep coming: a destroyed tank goes back to its prison's garage. Your cannon can't hurt them. **Only a bomb dropped from high enough** (more than 60 px up) reaches them; dropped lower it bursts on the ground short of them. Their shells arc up and fall back, so they can't reach you up high, but a shell coming down can hit a hostage.
+  * A **mine balloon** drifts after you once 16 hostages are out. Shoot it down.
+  * **Jets** come once 24 hostages are out. Sit on the ground more than 2 seconds and a bomber may come; stay up high more than 4 seconds and a fighter may.
   * Nothing attacks near the **home base**.
   * If the chopper goes down, everyone aboard is lost.
 * **Sector clear** when every hostage is home or lost, with a 200-point bonus for each one saved. An extra chopper every 20,000 points.

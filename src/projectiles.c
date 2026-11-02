@@ -61,9 +61,22 @@ void bullet_spawn(int16_t x, int16_t y, int16_t vx, int16_t vy)
     spawn(bullets, SPR_BULLET_COUNT, x, y, vx, vy);
 }
 
-void bomb_spawn(int16_t x, int16_t y, int16_t vx)
+#define BOMB_SPEED TO_SUB(3)
+#define BOMB_DEEP_Y (GROUND_LINE - 6)     /* where a deep bomb bursts: tank depth */
+#define BOMB_SHALLOW_Y (GROUND_LINE - 22) /* where a low one does: 16 px short */
+
+bool bomb_in_air(void)
 {
-    spawn(bombs, SPR_BOMB_COUNT, x, y, vx, ONE_PIXEL / 2);
+    for (uint8_t i = 0; i < SPR_BOMB_COUNT; i++)
+        if (bombs[i].active)
+            return true;
+    return false;
+}
+
+void bomb_spawn(int16_t x, int16_t y, bool deep)
+{
+    /* vx holds the row where it bursts. */
+    spawn(bombs, 1, x, y, deep ? BOMB_DEEP_Y : BOMB_SHALLOW_Y, BOMB_SPEED);
 }
 
 void ebullet_spawn(int16_t x, int16_t y, int16_t vx, int16_t vy, uint8_t kind)
@@ -75,6 +88,14 @@ void ebullet_spawn(int16_t x, int16_t y, int16_t vx, int16_t vy, uint8_t kind)
             return;
         }
     }
+}
+
+uint8_t ebullets_of(uint8_t kind)
+{
+    uint8_t n = 0;
+    for (uint8_t i = 0; i < SPR_EBULLET_COUNT; i++)
+        n += ebullets[i].active && ebullets[i].kind == kind;
+    return n;
 }
 
 static void boom(boom_t *pool, uint8_t n, int16_t x, int16_t y)
@@ -111,17 +132,6 @@ void small_explosion_spawn(int16_t cx, int16_t cy)
     boom(pops, SPR_SMALLEXP_COUNT, cx - 8, cy - 8);
 }
 
-/* A bomb's blast: everything near where it went off. */
-static void blast(int16_t x, int16_t y)
-{
-    explosion_spawn(x, y, true);
-    compounds_check_hit(x, y, true);
-    for (int8_t dx = -12; dx <= 12; dx += 12) {
-        tanks_check_hit(x + dx, y, true);
-        hostages_check_hit(x + dx, y);
-    }
-}
-
 void projectiles_update(void)
 {
     int16_t cam = FROM_SUB(camera_x);
@@ -142,7 +152,8 @@ void projectiles_update(void)
             small_explosion_spawn(x, GROUND_LINE - 2);
             continue;
         }
-        if (compounds_check_hit(x, y, false) || tanks_check_hit(x, y, false) || balloons_check_hit(x, y) ||
+        /* The cannon passes over tanks: only bombs hurt them. */
+        if (compounds_check_hit(x, y, false) || balloons_check_hit(x, y) ||
             jets_check_hit(x, y) || hostages_check_hit(x, y)) {
             b->active = false;
             small_explosion_spawn(x, y);
@@ -153,16 +164,15 @@ void projectiles_update(void)
         shot_t *b = &bombs[i];
         if (!b->active)
             continue;
-        b->x += b->vx;
-        b->vy += 3; /* gravity */
         b->y += b->vy;
         int16_t x = FROM_SUB(b->x) + 4, y = FROM_SUB(b->y) + 7;
-        if (y >= GROUND_LINE) {
+        if (y >= b->vx) {
             b->active = false;
-            blast(x, GROUND_LINE - 4);
-        } else if (compounds_check_hit(x, y, true) || tanks_check_hit(x, y, true)) {
-            b->active = false;
-            explosion_spawn(x, y, true);
+            small_explosion_spawn(x, b->vx);
+            sfx_enemy(SFX_EXPLODE, SFX_PRI_DESTROY);
+            compounds_check_hit(x, b->vx, true);
+            if (b->vx == BOMB_DEEP_Y)
+                tanks_bomb(x);
         }
     }
 
@@ -175,7 +185,7 @@ void projectiles_update(void)
         if (b->kind == EB_FLAK)
             b->vy += FLAK_GRAVITY;
         else if (b->kind == EB_BOMB)
-            b->vy += 2;
+            b->vy += JET_BOMB_GRAVITY;
         int16_t x = FROM_SUB(b->x) + 4, y = FROM_SUB(b->y) + (b->kind == EB_BOMB ? 6 : 2);
         if (x < cam - 32 || x > cam + SCREEN_W + 32 || y < HUD_H - 8) {
             b->active = false;
@@ -188,15 +198,18 @@ void projectiles_update(void)
                 sfx_enemy(SFX_EXPLODE, SFX_PRI_DESTROY);
             continue;
         }
-        if (player_alive() && abs(x - chopper_cx()) < (b->kind == EB_BOMB ? 14 : 13) &&
-            abs(y - (FROM_SUB(chopper_y) + 11)) < 9) {
+        /* Hit boxes around the chopper's middle: a shell 12 across and 8 up
+         * or down, the jet's bomb or shot 10 each way. */
+        bool flak = b->kind == EB_FLAK;
+        if (player_alive() && abs(x - chopper_cx()) < (flak ? 12 : 10) &&
+            abs(y - (FROM_SUB(chopper_y) + CHOPPER_H / 2)) < (flak ? 8 : 10)) {
             b->active = false;
             explosion_spawn(x, y, b->kind == EB_BOMB);
             player_kill();
             continue;
         }
-        /* Flak coming back down can land on the hostages. */
-        if (b->kind == EB_FLAK && b->vy > 0 && hostages_check_hit(x, y)) {
+        /* A shell coming back down, near the ground, can land on a hostage. */
+        if (b->kind == EB_FLAK && b->vy > 0 && y > GROUND_LINE - 20 && hostages_check_hit(x, HOSTAGE_Y + 8)) {
             b->active = false;
             continue;
         }

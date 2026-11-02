@@ -10,10 +10,17 @@ void projectiles_render(void);
 
 /* Positions are world pixels; velocities subpixels per frame. */
 void bullet_spawn(int16_t x, int16_t y, int16_t vx, int16_t vy);
-void bomb_spawn(int16_t x, int16_t y, int16_t vx);
+/* A bomb falls straight down; dropped from high enough (BOMB_DEEP_HEIGHT
+ * above landed height) it reaches tank depth, otherwise it bursts on the
+ * ground short of the tanks. One at a time. */
+bool bomb_in_air(void);
+void bomb_spawn(int16_t x, int16_t y, bool deep);
 /* Enemy fire: tank flak arcs under gravity and can come down on
  * hostages; a jet's shot flies straight; a jet's bomb falls. */
 enum { EB_FLAK, EB_SHOT, EB_BOMB };
+#define JET_BOMB_GRAVITY 2 /* subpixels per frame, each frame */
+/* Enemy shells in the air of a kind. */
+uint8_t ebullets_of(uint8_t kind);
 void ebullet_spawn(int16_t x, int16_t y, int16_t vx, int16_t vy, uint8_t kind);
 /* Explosions are centered on a world point. */
 void explosion_spawn(int16_t cx, int16_t cy, bool big);

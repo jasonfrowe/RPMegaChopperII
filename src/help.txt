@@ -13,12 +13,13 @@ HOW TO PLAY
    cannon, down.
 2. Land near the hostages. They run to the chopper and climb aboard,
    16 at most. Don't come down on top of them.
-3. Fly them home to the helipad at the east end, by the flag, and land.
-   They run into the medical station.
+3. Fly them home to the helipad by the medical station at the east end,
+   and land. They get off one at a time and run inside.
 4. The sector is clear when all 64 hostages are home or lost.
 
-Only bombs destroy tanks; their flak can't reach you up high. A mine
-balloon chases you once hostages are out. Later, jets bomb you if you sit
-on the ground too long, and shoot you if you stay up high too long.
+Only a bomb dropped from high up destroys a tank, and they keep coming;
+their shells can't reach you up high. A mine balloon chases you once
+hostages are out. Later, jets bomb you if you sit on the ground too long,
+and shoot you if you stay up high too long.
 Nothing attacks near the home base. If the chopper goes down, everyone
 aboard is lost.
