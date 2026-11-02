@@ -21,6 +21,7 @@
 #define TANK_OFFSCREEN 32     /* px off screen the spawn point must be */
 #define TANK_SPAWN_GAP 60     /* frames between tanks rolling out */
 #define TANK_LEASH 100        /* px from the prison */
+#define TANK_RESUME 12        /* px the chopper must move off before a parked tank follows */
 #define TANK_SPACING 45       /* px behind another tank */
 #define TANK_SPEED ONE_PIXEL
 #define TANK_REBUILD 300      /* frames a prison waits after losing a tank */
@@ -65,6 +66,7 @@ typedef struct
     bool active, falling;
     int32_t x, y; /* subpixels: left edge, and its middle */
     int16_t vy;
+    int8_t dir;   /* which way it is pushing: the sprite faces that way */
     uint16_t respawn;
 } balloon_t;
 
@@ -133,9 +135,11 @@ static bool offscreen(int16_t x, int16_t w, int16_t margin)
 /* --- Tanks ---------------------------------------------------------------- */
 
 /* Shell speeds in subpixels, from straight up to almost level: the
- * original's table, times three. */
-static const int8_t aim_vx[5] = {0, 33, 69, 87, 96};
-static const int8_t aim_vy[5] = {-96, -90, -69, -39, -15};
+ * original's angles, scaled so the steepest shot climbs FLAK_PEAK px
+ * (v * v / (2 * FLAK_GRAVITY) subpixels) and no higher. The original's
+ * climbed 144 px, too high for this game's sky. */
+static const int8_t aim_vx[5] = {0, 28, 58, 73, 80};
+static const int8_t aim_vy[5] = {-80, -75, -58, -33, -13};
 
 static void tank_fire(tank_t *t, int16_t ccx)
 {
@@ -228,13 +232,18 @@ static void update_tanks(int16_t ccx, bool safe)
         int16_t tcx = tx + TANK_W / 2;
         int16_t from_base = tcx - base_x(t->base);
         int16_t to_chopper = ccx - tcx;
+        /* After the chopper, but parked once under it until it is a good
+         * way off again, and stopped (not turned back) at the end of the
+         * leash, so it doesn't twitch back and forth. */
         int8_t want = to_chopper > 0 ? 1 : -1;
-        if (from_base > TANK_LEASH)
-            want = -1;
-        else if (from_base < -TANK_LEASH)
-            want = 1;
-        if (abs(to_chopper) < 4)
+        if (abs(to_chopper) < (t->moving ? 4 : TANK_RESUME))
             want = 0;
+        if ((want > 0 && from_base >= TANK_LEASH) || (want < 0 && from_base <= -TANK_LEASH))
+            want = 0;
+        if (from_base > TANK_LEASH + 8)
+            want = -1; /* well outside it, as when its prison changes: drive back */
+        else if (from_base < -TANK_LEASH - 8)
+            want = 1;
         for (uint8_t j = 0; j < TANKS_ACTIVE && want; j++) {
             if (j == i || !tanks[j].active)
                 continue;
@@ -248,7 +257,13 @@ static void update_tanks(int16_t ccx, bool safe)
             t->x += want * TANK_SPEED;
             t->anim++;
         }
-        t->turret = to_chopper > 20 ? 1 : (to_chopper < -20 ? -1 : 0);
+        /* The turret swings with a little slack too. */
+        if (to_chopper > 24)
+            t->turret = 1;
+        else if (to_chopper < -24)
+            t->turret = -1;
+        else if (abs(to_chopper) < 16)
+            t->turret = 0;
 
         /* On screen, a 2% chance a frame once reloaded; two shells at most. */
         if (t->cooldown) {
@@ -304,6 +319,7 @@ static void update_balloon(int16_t ccx, int16_t ccy)
         b->falling = false;
         b->x = TO_SUB(x);
         b->y = GROUND_Y_SUB - TO_SUB(BALLOON_START);
+        b->dir = x < ccx ? 1 : -1;
         return;
     }
 
@@ -321,16 +337,14 @@ static void update_balloon(int16_t ccx, int16_t ccy)
 
     /* After the chopper's middle, but back west of the safety line, and
      * never below its floor. */
-    if (bx > SAFE_LINE)
-        b->x -= BALLOON_SPEED_X;
-    else
-        b->x += bx < ccx ? BALLOON_SPEED_X : -BALLOON_SPEED_X;
+    b->dir = bx > SAFE_LINE || bx >= ccx ? -1 : 1;
+    b->x += b->dir * BALLOON_SPEED_X;
     b->y += FROM_SUB(b->y) < ccy ? BALLOON_SPEED_Y : -BALLOON_SPEED_Y;
     if (b->y > floor_y)
         b->y = floor_y;
 
     int16_t by = FROM_SUB(b->y);
-    if (player_alive() && abs(bx - ccx) < 18 && abs(by - ccy) < 18) {
+    if (player_alive() && abs(bx - ccx) < 22 && abs(by - ccy) < 18) {
         explosion_spawn(bx, by, true);
         b->active = false;
         b->respawn = BALLOON_RESPAWN;
@@ -343,7 +357,7 @@ bool balloons_check_hit(int16_t x, int16_t y)
     balloon_t *b = &balloon;
     if (!b->active || b->falling)
         return false;
-    if (abs(x - (FROM_SUB(b->x) + BALLOON_W / 2)) >= 10 || abs(y - FROM_SUB(b->y)) >= 18)
+    if (abs(x - (FROM_SUB(b->x) + BALLOON_W / 2)) >= 14 || abs(y - FROM_SUB(b->y)) >= 18)
         return false;
     b->falling = true;
     b->vy = ONE_PIXEL;
@@ -448,8 +462,11 @@ void enemies_update(void)
 void enemies_render(void)
 {
     int16_t cam = FROM_SUB(camera_x);
-    spr_place(SPR_FLAG, XRAM_IMG_FLAGS + ((frame_count >> 3) & 3) * FLAGS_FRAME_BYTES, PAL_FLAG, WH(24, 16), OPT4,
-              FLAG_X - cam, FLAG_Y);
+    uint16_t flag = XRAM_IMG_FLAGS + ((frame_count >> 3) & 3) * FLAGS_FRAME_BYTES;
+    spr_place(SPR_FLAG, flag, PAL_FLAG, WH(24, 16), OPT4, FLAG_X - cam, FLAG_Y);
+    /* The border flag ripples a beat behind the one at home. */
+    flag = XRAM_IMG_FLAGS + (((frame_count >> 3) + 2) & 3) * FLAGS_FRAME_BYTES;
+    spr_place(SPR_BORDER_FLAG, flag, PAL_FLAG, WH(24, 16), OPT4, BORDER_FLAG_X - cam, FLAG_Y);
 
     for (uint8_t i = 0; i < SPR_TANK_COUNT; i++) {
         tank_t *t = &tanks[i];
@@ -470,9 +487,10 @@ void enemies_render(void)
             spr_hide(SPR_BALLOON_START + i);
             continue;
         }
-        uint8_t f = balloon.falling ? (frame_count >> 1) % 3 : (frame_count >> 3) % 3;
+        uint8_t f = balloon.falling ? 1 : (frame_count >> 2) % 3; /* a dead one's engine stops */
         spr_place(SPR_BALLOON_START, XRAM_IMG_BALLOON + f * BALLOON_FRAME_BYTES, PAL_BALLOON,
-                  WH(BALLOON_W, BALLOON_H), OPT4, FROM_SUB(balloon.x) - cam, FROM_SUB(balloon.y) - BALLOON_H / 2);
+                  WH(BALLOON_W, BALLOON_H), balloon.dir > 0 ? OPT4_FLIP : OPT4, FROM_SUB(balloon.x) - cam,
+                  FROM_SUB(balloon.y) - BALLOON_H / 2);
     }
 
     for (uint8_t i = 0; i < SPR_JET_COUNT; i++) {

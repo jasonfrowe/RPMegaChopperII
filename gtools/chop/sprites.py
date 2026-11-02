@@ -358,30 +358,50 @@ def jet():
 
 
 # --- Balloon ---------------------------------------------------------------
-BALLOON_W, BALLOON_H = 16, 32
+BALLOON_W, BALLOON_H = 32, 32
 BL_MATS = {
-    "env": Material([2, 3, 4, 5]),
+    "env": Material([2, 3, 4, 5], dither=0.15),
     "red": Material([6, 7]),
-    "mine": Material([8, 9]),
     "fin": Material([2, 3, 4]),
+    "gond": Material([8, 9]),
+    "mine": Material([13, 9]),
 }
 
 
 def balloon():
-    """A tethered mine balloon; frames blink its warning light."""
+    """A motorised barrage blimp, nose left: a silver teardrop envelope with
+    red bands and three tail fins, a slim gondola with a pusher propeller,
+    and a spiked mine hanging below. Frames: the propeller turning, and the
+    warning light on the mine blinking."""
     frames = []
     for k in range(3):
         s = Sprite(BALLOON_W, BALLOON_H)
-        s.poly([(2, 4), (5, 1), (11, 1), (14, 4), (14, 6), (2, 6)], "fin", amp=1.0)
-        s.ellipse((1, 3, 15, 21), "env", amp=4.0)
-        s.rect((1.5, 11, 14.5, 13), "red", amp=0.5)
-        s.ellipse((5, 24, 11, 30), "mine", amp=2.0)
-        out = s.render(BL_MATS, gloss=0.3)
-        for y in range(21, 24):
-            out[y, 8] = 8
-        for x, y in ((4, 27), (11, 27), (8, 23), (8, 31)):
+        s.poly([(21, 8), (26, 1), (30, 1), (29, 8)], "fin", amp=1.0)           # top fin
+        s.poly([(21, 12), (26, 18), (30, 18), (29, 12)], "fin", amp=1.0)       # bottom fin
+        s.poly([(12, 5), (29, 9), (29, 11), (12, 16)], "env", amp=3.0, bevel=3.0)  # tail cone
+        s.ellipse((1, 3, 21, 18), "env", amp=5.0)                              # body
+        s.rect((8, 4, 9, 17), "red", amp=0.4)
+        s.rect((14, 4.5, 15, 16.5), "red", amp=0.4)
+        s.poly([(10, 18), (17, 18), (16, 21), (11, 21)], "gond", amp=0.8)
+        s.ellipse((9, 22, 19, 32), "mine", amp=3.0)
+        out = s.render(BL_MATS, gloss=0.4)
+        # Cables: envelope to gondola, gondola to mine.
+        out[17, 11] = out[17, 16] = 9
+        out[21, 14] = 9
+        # Hazard band round the mine, and spikes.
+        for x in range(10, 19):
+            if out[27, x] not in (0, 1):
+                out[27, x] = 12 if (x // 2) % 2 else 1
+        for x, y in ((8, 27), (19, 27), (14, 31), (10, 23), (18, 23)):
             out[y, x] = 1
-        out[27, 8] = 10 if k == 0 else (11 if k == 1 else 9)
+        out[6, 5] = out[6, 6] = 15                                              # glint
+        # Pusher propeller: a blurred disc behind the gondola, turning.
+        out[19, 18] = 8
+        for y in (17, 18, 19, 20, 21):
+            out[y, 19] = 14 if (y + k) % 3 else 9
+        # The warning light on the mine: on, dim, on.
+        out[25, 13] = 10 if k != 1 else 6
+        out[24, 13] = 11 if k != 1 else out[24, 13]
         frames.append(out)
     return frames
 

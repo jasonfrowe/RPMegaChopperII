@@ -136,6 +136,8 @@ def header(sheets, counts, door, maps):
     L.append(f"#define HOME_DOOR_X {fg.HANGAR_DOOR_X}")
     L.append(f"#define FLAG_X {fg.FLAG_COL * 16 + 5}")
     L.append(f"#define FLAG_Y {fg.GROUND_LINE - 90}")
+    L.append(f"#define BORDER_X {fg.BORDER_X} /* the border flag; the enemy stays west of it */")
+    L.append(f"#define BORDER_FLAG_X {fg.BORDER_X + 1}")
     L.append("")
     L.append("/* The door's tiles (and the row above it, with the warning lamp),")
     L.append(" * top row first: as built, and blown open. */")

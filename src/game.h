@@ -42,15 +42,17 @@
 #define BUNKER_TOP (GROUND_LINE - 58)
 
 /* Tank shells fall back under this gravity (subpixels per frame, each
- * frame), so they can't reach a chopper flying high. */
+ * frame) and climb at most FLAK_PEAK px, about to screen row 90, so they
+ * can't reach a chopper flying in the upper half of the sky. */
 #define FLAK_GRAVITY 2
+#define FLAK_PEAK 100
 
 /* A bomb dropped from more than this above landed height reaches tank depth. */
 #define BOMB_DEEP_HEIGHT 60
 
-/* East of this nothing attacks: the home base is safe, as in Choplifter.
- * Halfway between the last prison and the helipad. */
-#define SAFE_LINE ((DOOR_X(NUM_COMPOUNDS - 1) + HOME_PAD_X0) / 2)
+/* East of the border flag nothing attacks: the home base is safe, as in
+ * Choplifter. It stands about halfway between the last prison and home. */
+#define SAFE_LINE BORDER_X
 
 /* Camera dead zone, as screen x of the chopper's left edge: the screen
  * scrolls only once the chopper leaves the 80 pixels around the middle,

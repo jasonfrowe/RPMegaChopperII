@@ -49,10 +49,10 @@ static const uint16_t aurora_wave[AURORA_WAVE_N] = {
 #define JET_H 16
 #define JET_FRAMES 2
 #define JET_FRAME_BYTES 320
-#define BALLOON_W 16
+#define BALLOON_W 32
 #define BALLOON_H 32
 #define BALLOON_FRAMES 3
-#define BALLOON_FRAME_BYTES 256
+#define BALLOON_FRAME_BYTES 512
 #define BOMB_W 8
 #define BOMB_H 8
 #define BOMB_FRAMES 2
@@ -120,14 +120,16 @@ static const uint8_t compound_cols[NUM_COMPOUNDS] = {18, 75, 138, 196};
 #define HOME_DOOR_X 3880
 #define FLAG_X 4021
 #define FLAG_Y 118
+#define BORDER_X 3556 /* the border flag; the enemy stays west of it */
+#define BORDER_FLAG_X 3557
 
 /* The door's tiles (and the row above it, with the warning lamp),
  * top row first: as built, and blown open. */
 #define DOOR_TILE_ROWS 3
 static const uint8_t door_intact[DOOR_TILE_ROWS][DOOR_W] = {
-    {33, 34},
-    {71, 72},
-    {114, 115},
+    {31, 32},
+    {66, 67},
+    {108, 109},
 };
 static const uint8_t door_breached[DOOR_TILE_ROWS][DOOR_W] = {
     {186, 187},

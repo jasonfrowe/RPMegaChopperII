@@ -35,6 +35,11 @@ PAD_COL0, PAD_COL1 = 244, 249       # helipad, columns [PAD_COL0, PAD_COL1), by 
 FLAG_COL = 251
 HANGAR_DOOR_X = (HANGAR_COL + 6) * T + 8
 
+# The border: a checkpoint with a flag, halfway between the last prison and
+# home. East of it the enemy doesn't go and doesn't attack.
+BORDER_COL = 222
+BORDER_X = BORDER_COL * T + 4       # the flagpole
+
 
 class Canvas:
     def __init__(self, w, h):
@@ -315,12 +320,37 @@ def helipad(c: Canvas):
     c.snowcap(sx, sx + 16, SURF - 42, thick=2)
 
 
-def flagpole(c: Canvas):
-    x = FLAG_COL * T + 4
+def flagpole(c: Canvas, x=FLAG_COL * T + 4):
     c.rect(x - 1, SURF - 90, x + 2, SURF + 1, 1)
     c.rect(x, SURF - 90, x + 1, SURF + 1, 10)
     c.box(x - 3, SURF - 93, x + 4, SURF - 89, 13, light=15)
     c.box(x - 6, SURF - 4, x + 7, SURF + 1, 8, light=9)
+
+
+def checkpoint(c: Canvas):
+    """The border: a flagpole, a red and white boom across the way, and
+    sandbags."""
+    x = BORDER_X
+    flagpole(c, x)
+    # Boom gate on a post east of the pole, the boom pointing west, raised.
+    px = x + 22
+    c.box(px - 2, SURF - 22, px + 3, SURF + 1, 8, light=9)
+    c.box(px - 4, SURF - 26, px + 5, SURF - 20, 7, light=8)
+    for k in range(34):
+        bx, by = px - k, SURF - 24 - k // 3
+        col = 14 if (k // 5) % 2 else 6
+        c.px(bx, by - 1, 1)
+        c.px(bx, by, col)
+        c.px(bx, by + 1, col)
+        c.px(bx, by + 2, 1)
+    # Sandbags either side.
+    for sx in (x - 30, x + 30):
+        for row, n in ((0, 3), (1, 2)):
+            for k in range(n):
+                bx = sx + k * 9 + row * 4
+                by = SURF - 5 - row * 5
+                c.box(bx, by, bx + 9, by + 6, 9, light=10, dark=8)
+        c.snowcap(sx + 4, sx + 18, SURF - 10, thick=2)
 
 
 def hangar(c: Canvas, rng):
@@ -388,6 +418,8 @@ def paint(seed=21):
         busy.append((col * T - 24, (col + COMPOUND_W) * T + 24))
     helipad(c)
     flagpole(c)
+    checkpoint(c)
+    busy.append((BORDER_X - 50, BORDER_X + 70))
     hangar(c, rng)
     busy.append((HANGAR_COL * T - 40, W))
 

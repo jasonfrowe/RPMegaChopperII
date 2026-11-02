@@ -161,5 +161,15 @@ down, of its middle), it stops, drops (starting at 1 px/frame, gravity
 - **Leaving tanks** go back to their garage only once off screen, rather
   than vanishing in view.
 - **Bombs open prisons** too, and the cannon still does.
+- **Tank shells** use the same five angles but slower, so the steepest
+  climbs 100 px instead of 144 (to about screen row 90): the sequel's sky
+  is taller relative to the tanks, and 144 px reached nearly to its top.
+- **Tanks don't twitch:** at the end of its leash a tank stops instead of
+  turning back, and once parked under the chopper it stays put until the
+  chopper is 12 px off. The turret swings with a little slack too.
+- **The safety line is marked** by a border checkpoint with a second flag,
+  halfway between the last prison and home.
+- **The balloon** is a motorised barrage blimp (32x32) with a mine below
+  it, facing the way it moves; its hit boxes are a little wider to match.
 - **Sizes:** the sequel's chopper is 40x20, its tank 40x20, its jet 40x16,
   its balloon 16x32; distances "from the middle" use those.
