@@ -19,6 +19,8 @@ void compounds_update(void);
 void compounds_render(void);
 /* How many hostages have come out of the prisons so far. */
 uint8_t compounds_freed(void);
+/* How many prisons have been opened. */
+uint8_t compounds_breached(void);
 /* A shot or bomb at world (x, y). A hit on the door blows it open; a bomb
  * on the roof above the door does too. True if the shot stops there. */
 bool compounds_check_hit(int16_t x, int16_t y, bool bomb);

@@ -29,6 +29,14 @@ uint8_t compounds_freed(void)
     return n;
 }
 
+uint8_t compounds_breached(void)
+{
+    uint8_t n = 0;
+    for (uint8_t i = 0; i < NUM_COMPOUNDS; i++)
+        n += compounds[i].breached;
+    return n;
+}
+
 void compounds_update(void)
 {
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {

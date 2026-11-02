@@ -171,5 +171,17 @@ down, of its middle), it stops, drops (starting at 1 px/frame, gravity
   halfway between the last prison and home.
 - **The balloon** is a motorised barrage blimp (32x32) with a mine below
   it, facing the way it moves; its hit boxes are a little wider to match.
+- **Pacing:** tanks roll out 480 px from their prison (not 320), 240
+  frames apart (not 60), and hold fire 90 frames after arriving (not 20);
+  a prison that has just become the nearest waits 360 frames before it
+  sends any. The balloon waits for 24 hostages out (not 16) and appears
+  128 px off screen (not 64).
+- **The balloon at the border** backs off 80 px west before coming back,
+  so it patrols along the line instead of hanging on it.
+- **Jets** wait until the third prison has been opened (not 24 hostages
+  out), and they are telegraphed: after 2 s up high a warning to get low;
+  when one is coming, "JET INBOUND!" and a reticle blinking for 1.5 s at
+  the screen edge it will come from, at the height it will fly (locked
+  when it sets off, so dropping away dodges it).
 - **Sizes:** the sequel's chopper is 40x20, its tank 40x20, its jet 40x16,
   its balloon 16x32; distances "from the middle" use those.

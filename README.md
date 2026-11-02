@@ -52,8 +52,8 @@ As pilot of the experimental **SuperChopper**, your mission is to:
 * **Bring them home.** Land on the helipad by the medical station at the east end. They get off one at a time and run inside. Each one saved is 250 points.
 * **Watch out.** The enemy follows the original game's rules (written up in [`docs/ORIGINAL_GAMEPLAY.md`](docs/ORIGINAL_GAMEPLAY.md)):
   * **Tanks** turn up once 4 hostages are aboard or saved, two at a time from the prison you are nearest, and keep coming: a destroyed tank goes back to its prison's garage. Your cannon can't hurt them. **Only a bomb dropped from high enough** (more than 60 px up) reaches them; dropped lower it bursts on the ground short of them. Their shells arc up and fall back, so they can't reach you up high, but a shell coming down can hit a hostage.
-  * A **mine balloon** drifts after you once 16 hostages are out. Shoot it down.
-  * **Jets** come once 24 hostages are out. Sit on the ground more than 2 seconds and a bomber may come; stay up high more than 4 seconds and a fighter may.
+  * A **mine blimp** drifts after you once 24 hostages are out. Shoot it down. It won't cross the border.
+  * **Jets** come once the third prison is open. Sit on the ground more than 2 seconds and a bomber may come; stay up high more than 4 seconds and a fighter may. You get a warning: "JET INBOUND!" and a red reticle at the edge of the screen it will come from, at the height it will fly.
   * Nothing attacks near the **home base**, east of the border flag.
   * **Blizzards** blow in from time to time: it gets hard to see, and the wind pushes you sideways, up to about a third of your top speed in the gusts. They pass in 20 seconds or so.
   * If the chopper goes down, everyone aboard is lost.

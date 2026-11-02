@@ -3,6 +3,7 @@
 #include "compounds.h"
 #include "enemies.h"
 #include "game.h"
+#include "hud.h"
 #include "input.h"
 #include "player.h"
 #include "projectiles.h"
@@ -17,19 +18,22 @@
 #define TANKS_ACTIVE 2
 #define TANKS_PER_BASE 2
 #define TANK_TRIGGER 4        /* hostages aboard or saved before any tanks */
-#define TANK_SPAWN_DIST 320   /* px from the prison they roll out at */
+#define TANK_SPAWN_DIST 480   /* px from the prison they roll out at (320 in the original) */
 #define TANK_OFFSCREEN 32     /* px off screen the spawn point must be */
-#define TANK_SPAWN_GAP 60     /* frames between tanks rolling out */
+#define TANK_SPAWN_GAP 240    /* frames between tanks rolling out (60 in the original) */
+#define TANK_GRACE 360        /* frames a prison waits once it becomes the nearest */
 #define TANK_LEASH 100        /* px from the prison */
 #define TANK_RESUME 12        /* px the chopper must move off before a parked tank follows */
 #define TANK_SPACING 45       /* px behind another tank */
 #define TANK_SPEED ONE_PIXEL
 #define TANK_REBUILD 300      /* frames a prison waits after losing a tank */
-#define TANK_FIRST_SHOT 20
+#define TANK_FIRST_SHOT 90    /* frames before a new tank fires (20 in the original) */
 #define TANK_SHELLS 2         /* in the air at once */
 
 /* --- Balloon -------------------------------------------------------------- */
-#define BALLOON_TRIGGER 16    /* hostages out of the prisons */
+#define BALLOON_TRIGGER 24    /* hostages out of the prisons (16 in the original) */
+#define BALLOON_OFFSCREEN 128 /* px off screen it appears (64 in the original) */
+#define BALLOON_BACKOFF 80    /* px it backs off west from the border before coming back */
 #define BALLOON_RESPAWN 300
 #define BALLOON_START 60      /* px above landed height, its middle */
 #define BALLOON_FLOOR 32      /* lowest it comes, px above landed height */
@@ -37,7 +41,8 @@
 #define BALLOON_SPEED_Y 8
 
 /* --- Jet ------------------------------------------------------------------ */
-#define JET_TRIGGER 24        /* hostages out of the prisons */
+#define JET_TRIGGER 3         /* prisons opened (the original: 24 hostages out) */
+#define JET_WARN_TIME 90      /* frames of warning before a jet arrives */
 #define JET_GROUND_WAIT 120   /* frames landed before a bomber may come */
 #define JET_AIR_WAIT 240      /* frames up high before a fighter may come */
 #define JET_AIR_ZONE 75       /* "up high": chopper's top above this screen row */
@@ -67,12 +72,14 @@ typedef struct
     int32_t x, y; /* subpixels: left edge, and its middle */
     int16_t vy;
     int8_t dir;   /* which way it is pushing: the sprite faces that way */
+    bool retreat; /* backing off from the border */
     uint16_t respawn;
 } balloon_t;
 
 enum
 {
     JET_OFF,
+    JET_WARN,   /* on its way: a marker blinks at the edge it will come from */
     JET_ATTACK,
     JET_LEAVE
 };
@@ -84,6 +91,7 @@ typedef struct
     int32_t x; /* subpixels, left edge */
     int16_t y;
     int8_t dir;
+    uint8_t timer;
 } jet_t;
 
 static tank_t tanks[TANKS_ACTIVE];
@@ -94,6 +102,8 @@ static uint8_t tank_spawn_timer;
 static balloon_t balloon;
 static jet_t jet;
 static uint16_t loiter_ground, loiter_air;
+static uint8_t last_nearest;
+static bool radar_warned;
 
 void enemies_init(void)
 {
@@ -109,6 +119,8 @@ void enemies_init(void)
     balloon.respawn = 0;
     jet.state = JET_OFF;
     loiter_ground = loiter_air = 0;
+    last_nearest = 0xFF;
+    radar_warned = false;
 }
 
 static int16_t base_x(uint8_t b)
@@ -178,6 +190,16 @@ static void update_tanks(int16_t ccx, bool safe)
             garage[i] = TANKS_PER_BASE;
     }
     uint8_t b = nearest_base(ccx);
+    /* A prison that has just become the nearest gives the chopper a while
+     * before it sends anything, so there is time to start the rescue. */
+    if (b != last_nearest) {
+        last_nearest = b;
+        bool out = false;
+        for (uint8_t i = 0; i < TANKS_ACTIVE; i++)
+            out |= tanks[i].active && tanks[i].base == b;
+        if (!out && rebuild[b] < TANK_GRACE)
+            rebuild[b] = TANK_GRACE;
+    }
 
     /* The nearest prison rolls one out: on its left if it has none there,
      * else on its right, and only out of sight. */
@@ -307,7 +329,7 @@ static void update_balloon(int16_t ccx, int16_t ccy)
             return;
         /* 64 px off screen, left or right, never east of the safety line. */
         int16_t cam = FROM_SUB(camera_x);
-        int16_t left = cam - 64 - BALLOON_W, right = cam + SCREEN_W + 64;
+        int16_t left = cam - BALLOON_OFFSCREEN - BALLOON_W, right = cam + SCREEN_W + BALLOON_OFFSCREEN;
         int16_t x;
         if (rng_next() & 1)
             x = right < SAFE_LINE ? right : left;
@@ -320,6 +342,7 @@ static void update_balloon(int16_t ccx, int16_t ccy)
         b->x = TO_SUB(x);
         b->y = GROUND_Y_SUB - TO_SUB(BALLOON_START);
         b->dir = x < ccx ? 1 : -1;
+        b->retreat = false;
         return;
     }
 
@@ -337,7 +360,16 @@ static void update_balloon(int16_t ccx, int16_t ccy)
 
     /* After the chopper's middle, but back west of the safety line, and
      * never below its floor. */
-    b->dir = bx > SAFE_LINE || bx >= ccx ? -1 : 1;
+    /* At the border it backs well off before coming back, so it patrols
+     * along it instead of hanging there. */
+    if (bx >= SAFE_LINE - BALLOON_W / 2)
+        b->retreat = true;
+    else if (bx < SAFE_LINE - BALLOON_BACKOFF)
+        b->retreat = false;
+    if (b->retreat)
+        b->dir = -1;
+    else if (abs(bx - ccx) > 2)
+        b->dir = bx < ccx ? 1 : -1;
     b->x += b->dir * BALLOON_SPEED_X;
     b->y += FROM_SUB(b->y) < ccy ? BALLOON_SPEED_Y : -BALLOON_SPEED_Y;
     if (b->y > floor_y)
@@ -373,7 +405,7 @@ static void update_jet(int16_t ccx, bool safe)
 {
     jet_t *j = &jet;
     if (j->state == JET_OFF) {
-        if (compounds_freed() < JET_TRIGGER)
+        if (compounds_breached() < JET_TRIGGER)
             return;
         if (safe) {
             loiter_ground = loiter_air = 0;
@@ -389,20 +421,38 @@ static void update_jet(int16_t ccx, bool safe)
             loiter_ground = 0;
         }
         if (FROM_SUB(chopper_y) < JET_AIR_ZONE) {
-            if (++loiter_air > JET_AIR_WAIT && rng_range8(0, 99) < 2) {
+            /* Halfway there, a first warning to get low. */
+            if (++loiter_air > JET_AIR_WAIT / 2 && !radar_warned) {
+                radar_warned = true;
+                msg_flash("ENEMY RADAR HAS YOU - GET LOW!", C_ORANGE, 120);
+            }
+            if (loiter_air > JET_AIR_WAIT && rng_range8(0, 99) < 2) {
                 go = true;
                 j->bomber = false;
             }
         } else {
             loiter_air = 0;
+            radar_warned = false;
         }
         if (!go)
             return;
         loiter_ground = loiter_air = 0;
-        j->state = JET_ATTACK;
+        radar_warned = false;
+        /* It locks onto the chopper's height now and keeps it, so getting
+         * out of the way is the answer to the warning. */
+        j->state = JET_WARN;
+        j->timer = JET_WARN_TIME;
         j->dir = (rng_next() & 1) ? 1 : -1;
-        j->x = j->dir > 0 ? camera_x - TO_SUB(JET_W) : camera_x + TO_SUB(SCREEN_W);
         j->y = j->bomber ? GROUND_Y - JET_BOMBER_HEIGHT : FROM_SUB(chopper_y) + CHOPPER_H / 2 - JET_H / 2;
+        msg_flash("JET INBOUND!", C_RED, JET_WARN_TIME);
+        sfx_enemy(SFX_WARNING, SFX_PRI_EVENT);
+        return;
+    }
+    if (j->state == JET_WARN) {
+        if (--j->timer)
+            return;
+        j->state = JET_ATTACK;
+        j->x = j->dir > 0 ? camera_x - TO_SUB(JET_W) : camera_x + TO_SUB(SCREEN_W);
         sfx_enemy(SFX_JET_FLYBY, SFX_PRI_EVENT);
         return;
     }
@@ -436,7 +486,7 @@ static void update_jet(int16_t ccx, bool safe)
 bool jets_check_hit(int16_t x, int16_t y)
 {
     jet_t *j = &jet;
-    if (j->state == JET_OFF)
+    if (j->state == JET_OFF || j->state == JET_WARN)
         return false;
     int16_t jcx = FROM_SUB(j->x) + JET_W / 2;
     if (abs(x - jcx) >= 12 + (JET_W - 16) / 2 || abs(y - (j->y + JET_H / 2)) >= 8)
@@ -493,8 +543,17 @@ void enemies_render(void)
                   FROM_SUB(balloon.y) - BALLOON_H / 2);
     }
 
+    /* The warning: a reticle blinking at the screen edge the jet will come
+     * from, at the height it will fly. */
+    if (jet.state == JET_WARN && (frame_count & 8))
+        spr_place(SPR_JET_START + 1, XRAM_IMG_TARGET + ((frame_count >> 2) & 1) * TARGET_FRAME_BYTES, PAL_TARGET,
+                  WH(16, 16), OPT4, jet.dir > 0 ? 2 : SCREEN_W - 18, jet.y + JET_H / 2 - 8);
+    else
+        spr_hide(SPR_JET_START + 1);
     for (uint8_t i = 0; i < SPR_JET_COUNT; i++) {
-        if (i || jet.state == JET_OFF) {
+        if (i)
+            continue;
+        if (jet.state == JET_OFF || jet.state == JET_WARN) {
             spr_hide(SPR_JET_START + i);
             continue;
         }
