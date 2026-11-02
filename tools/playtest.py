@@ -6,15 +6,18 @@ numbers move every build. Write {name} in a script instead, and this
 fills in the address of that symbol from the ELF. {name+1} works too.
 
 Built-in scripts (pass the name instead of a file):
-  boss     warp to the end of the stage, fight the boss invulnerable,
-           print dropped frames and save screenshots
-  soak     play the whole stage holding fire, invulnerable, printing
-           dropped frames as it goes
+  flight   take off and fly west, shooting and bombing, with screenshots
+  rescue   breach a prison, land, load hostages, unload them at home
+  soak     fly about holding fire, invulnerable, printing dropped frames
+
+test_stats (dumped by the scripts) is: state, cargo, saved, lost, lives,
+breached prisons (a bit each), score (2 bytes). Dump that rather than the
+game's own variables, which can be stale in memory.
 
 Usage:
-  tools/playtest.py boss [--out DIR] [--stage N]
+  tools/playtest.py rescue [--out DIR]
   tools/playtest.py my_script.txt [--out DIR]
-  tools/playtest.py boss --phi2 4000     # the 6502 at half speed: does it still keep up?
+  tools/playtest.py soak --phi2 4000     # the 6502 at half speed: does it still keep up?
 """
 
 import argparse
@@ -31,40 +34,94 @@ ELF = BUILD / "RPMegaChopperII.elf"
 NM = Path.home() / ".rp6502" / "llvm-mos" / "bin" / "llvm-nm"
 EMU = ROOT / "tools" / "rp6502-emu"
 
+def le(v, n=4):
+    return " ".join(f"${(v >> (8 * i)) & 0xFF:02X}" for i in range(n))
+
+
+# Put the chopper at world (x, y), hovering, with the camera on it.
+def place(x, y):
+    return (f"poke {{debug_warp_y}} {le(y, 2)}\n"
+            f"poke {{debug_warp_x}} {le(x, 2)}\n")
+
+
 BUILTIN = {
+    # Fly west from the helipad across the map, firing.
     "flight": (
         "run 30\n"
         "shot \"{out}/01_title.png\"\n"
         "press z\nrun 2\nrelease z\n"
         "run 60\n"
         "shot \"{out}/02_home_base.png\"\n"
-        "# Fly left and climb\n"
-        "press a\npress w\n"
-        "run 80\n"
-        "release w\n"
-        "shot \"{out}/03_in_flight.png\"\n"
-        "# Fire vulcan machine guns\n"
-        "press z\nrun 20\nrelease z\n"
-        "run 40\n"
+        "press w\nrun 30\nrelease w\n"
+        "press a\n"
+        + "".join("run 21\npress w\nrun 9\nrelease w\n" for _ in range(6))
+        + "shot \"{out}/03_in_flight.png\"\n"
+        "press z\n"
+        + "".join("run 21\npress w\nrun 9\nrelease w\n" for _ in range(6))
+        + "release z\n"
         "shot \"{out}/04_firing.png\"\n"
-        "# Turn to face front and drop bombs\n"
-        "press x\nrun 2\nrelease x\n"
-        "run 20\n"
-        "press z\nrun 2\nrelease z\n"
-        "run 40\n"
-        "shot \"{out}/05_bombing.png\"\n"
         "release a\n"
+        "press x\nrun 2\nrelease x\nrun 20\n"
+        "press z\nrun 2\nrelease z\nrun 20\n"
+        "shot \"{out}/05_bombing.png\"\n"
         "run 60\n"
         "shot \"{out}/06_tundra.png\"\n"
         "dump {lag_frames} 2\n"
-        "dump {gstate} 1\n"
-        "dump {score} 4\n"
+        "dump {test_stats} 8\n"
+    ),
+    # Shoot open the nearest prison, land, load up, fly home and unload.
+    "rescue": (
+        "run 30\npress z\nrun 2\nrelease z\nrun 30\n"
+        "poke {chopper_invulnerable} 1\n"
+        + place(3300, 172)
+        + "press a\nrun 2\nrelease a\nrun 4\n"
+        "press z\nrun 30\nrelease z\nrun 20\n"
+        "shot \"{out}/01_breach.png\"\n"
+        "dump {test_stats} 8\n"
+        "press s\nrun 30\nrelease s\n"
+        "run 240\n"
+        "shot \"{out}/02_boarding.png\"\n"
+        "run 400\n"
+        "shot \"{out}/03_boarded.png\"\n"
+        "dump {test_stats} 8\n"
+        # Home: climb, then put it over the helipad and set it down.
+        "press w\nrun 10\nrelease w\n"
+        + place(3800, 150)
+        + "press s\nrun 40\nrelease s\nrun 60\n"
+        "shot \"{out}/04_unloading.png\"\n"
+        "run 360\n"
+        "shot \"{out}/05_home.png\"\n"
+        "dump {test_stats} 8\n"
+        "dump {lag_frames} 2\n"
+    ),
+    # Empty every prison in turn and fly everyone home: the sector clears.
+    "campaign": (
+        "run 30\npress z\nrun 2\nrelease z\nrun 30\npoke {chopper_invulnerable} 1\n"
+        + "".join(
+            place(door + 84, 172)
+            + "press a\nrun 2\nrelease a\nrun 4\npress z\nrun 30\nrelease z\nrun 20\n"
+            "press s\nrun 30\nrelease s\nrun 900\n"
+            f"shot \"{{out}}/c{k}_loaded.png\"\n"
+            "dump {test_stats} 8\n"
+            "press w\nrun 10\nrelease w\n"
+            + place(3800, 150)
+            + "press s\nrun 40\nrelease s\nrun 500\n"
+            "dump {test_stats} 8\n"
+            for k, door in enumerate((3216, 2288, 1280, 368))
+        )
+        + "run 120\nshot \"{out}/c_clear.png\"\ndump {test_stats} 8\n"
+    ),
+    # Fly into the mine balloons until the last chopper is gone.
+    "gameover": (
+        "run 30\npress z\nrun 2\nrelease z\nrun 120\n"
+        + "".join(place(x - 12, y - 2) + "run 320\n" for x, y in ((560, 70), (1520, 100), (2480, 60)))
+        + "shot \"{out}/gameover.png\"\ndump {test_stats} 8\n"
     ),
     "soak": (
-        "run 30\npress z\nrun 2\nrelease z\n"
+        "run 30\npress z\nrun 2\nrelease z\npoke {chopper_invulnerable} 1\n"
         + "".join(
             f"press {k}\nrun 120\nshot \"{{out}}/soak_{i}.png\"\ndump {{lag_frames}} 2\nrelease {k}\n"
-            for i, k in enumerate("adwzszaxd")
+            for i, k in enumerate("wazwazxzdwzs")
         )
     ),
 }

@@ -1,9 +1,8 @@
 # Asset Generation Tools (`gtools`)
 
-These scripts procedurally generated the initial graphics, sound effects,
-music, and lookup tables for MegaGammaForce. They are kept outside the main
-build and ignored by git so that hand-remastered PNG and VGM/Furnace assets
-in `images/` and `music/` are never overwritten during normal builds.
+These scripts generate the graphics, sound effects and music. They are not
+part of the build, so PNG and VGM/Furnace assets in `images/` and `music/`
+that have been touched up by hand are never overwritten by a normal build.
 
 ## Setup
 
@@ -18,30 +17,35 @@ python3 -m venv .venv
 
 | Tool | Makes |
 |---|---|
-| `gtools/gen_art.py` | Shared sheets in `images/*.png`; each stage's sheets, maps and palettes in `images/stage<N>/`; `src/gen/assets.h`, `src/gen/stage<N>.h` (bank offsets) and `src/gen/stage<N>_data.h` (enemy type checks) |
-| `gtools/art/` | The pixel-art kit: shapes with heights, lit from the top left, outlined. Banking frames are real rolls of the ship. `stages.py` lists what each stage's files hold and places ground units, `waves.py` has every stage's air waves; `tiles.py`, `city.py`, `ocean.py`, `desert.py`, `arctic.py`, `orbit.py`, `luna.py`, `deep.py`, `sun.py` draw the stages, `boss.py`, `boss2.py`, `ship.py`, `wyrm.py`, `crawler.py`, `station.py`, `driver.py`, `hive.py`, `gamma.py` the bosses, `airpath.py` checks the waves against the sky, `hud.py` the HUD graphics. |
+| `gtools/gen_art.py` | Every graphic in `images/`, and `src/gen/assets.h` |
+| `gtools/chop/` | The art itself: `far.py` (sky, aurora, mountains), `mid.py` (hills, forest, cabins, masts), `fg.py` (the ground, the four prisons, the home base), `sprites.py`, `logo.py`, `pal.py` (every palette), `tilemap.py` (cutting a layer into tiles and fitting it to a budget) |
+| `gtools/art/kit.py` | The lit, outlined pixel-art shapes the sprites are drawn with, from MegaGammaForce. The rest of `gtools/art/` is MegaGammaForce's stage art and is not used here. |
 | `gtools/gen_sfx.py` | OPL2 sound effects in `music/sfx.bin`, `music/sfx/*.vgm`, `src/gen/sfx_ids.h` |
-| `gtools/generate_music.py` | OPL2 music via Furnace (from RPDemo's composer): `music/fur_levels/*.fur` and `music/*.vgm` |
-| `gtools/gen_tables.py` | Trig tables in `src/gen/tables.c` |
+| `gtools/generate_music.py` | OPL2 music via Furnace: `music/fur_levels/*.fur` and `music/*.vgm` |
 
-> **Warning:** Running `gtools/gen_art.py`, `gtools/gen_sfx.py`, or
-> `gtools/generate_music.py` (without `--scratch`) will overwrite the
-> corresponding static assets in `images/` and `music/`.
-
-## Graphics & Stage Generation (`gtools/gen_art.py`)
+## Graphics (`gtools/gen_art.py`)
 
 ```sh
 .venv/bin/python gtools/gen_art.py [--preview DIR]
 ```
 
-The PNG sheets written to `images/*.png` and `images/stage<N>/*.png` are
-indexed 16-color images with frames side by side, so they open directly in
-Aseprite.
+Writes the sprite sheets (`images/<name>.png`, frames side by side), the
+three tile layers (`far_tiles.png` and `mid_tiles.png` in 8x8 tiles,
+`fg_tiles.png` in 16x16, with `*_map.bin`), `logo.png` (1 bit per pixel),
+`palettes.bin` and `src/gen/assets.h`. `--preview DIR` also writes mock
+screens of the layers at a few places in the world, and every sprite sheet
+blown up.
 
-Enemy waves are laid out clear of sky-layer obstacles: the sky scrolls a
-fixed amount for every pixel the ground does, so `gtools/art/airpath.py`
-flies every wave over the sky when `gen_art.py` runs and stops on any that
-would run into one, naming the nearest clear place to move it.
+Each layer is painted as one picture and cut into tiles. When it needs more
+distinct tiles than its budget (`FAR_TILES`, `MID_TILES`, `FG_TILES` at the
+top of `gen_art.py`), the tiles that differ least from another are merged
+into it until it fits. The prison door's tiles, as built and blown open,
+are kept exact, because the game swaps one set for the other. The budgets
+and the sprites together fill XRAM; `src/xram.h` asserts that it all fits.
+
+The far layer's palette entries 8-12 are the aurora: the game rotates them
+through `AURORA_WAVE` (in `pal.py`) so light ripples along the curtains.
+Entry 11 of the mid layer is the radio masts' beacon, which blinks.
 
 ## Music Generation (`gtools/generate_music.py`)
 
@@ -49,6 +53,13 @@ The remastered tracks in `music/fur_levels/*.fur` and `music/*.vgm` no
 longer match `gtools/music_manifest.json`. Running `generate_music.py`
 without `--scratch` writes over them, so use it only for new material. The
 rest of this section describes how the original tracks were generated.
+
+### Patches
+
+Melodic parts use only patches `00`-`7F` of RPTracker's bank (the General
+MIDI set), and drums only its custom kit: `FD` bass drum, `FE` snare, `FF`
+hat. Crashes, rides and toms are played on the kit. `--patch` refuses
+anything else, and every generated song is checked before it is written.
 
 ### The generator
 

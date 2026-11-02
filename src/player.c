@@ -1,4 +1,5 @@
 #include <rp6502.h>
+#include <stdlib.h>
 #include "game.h"
 #include "input.h"
 #include "player.h"
@@ -14,257 +15,254 @@ int16_t chopper_vel_y;
 chopper_heading_t chopper_heading;
 player_status_t player_status;
 bool chopper_is_landed;
+volatile bool chopper_invulnerable;
+volatile int16_t debug_warp_x, debug_warp_y;
 
-static uint8_t blade_anim;
-static uint8_t rotor_sound_timer;
+static chopper_heading_t next_heading;
+static int8_t last_side; /* the side faced before turning to the front */
+static bool is_turning;
+static uint8_t turn_timer;
 static uint8_t fire_cooldown;
-static int8_t last_side_facing;
-static uint8_t turn_anim_timer;
-static uint8_t crash_timer;
+static uint8_t respawn_timer;
+static uint8_t blink; /* frames of flicker after respawning */
 
-#define MAX_SPEED_X TO_SUB(4)
-#define ACCEL_X TO_SUB(1) / 3
-#define DECEL_X TO_SUB(1) / 4
-#define VERTICAL_SPEED TO_SUB(2)
+/* Frame pairs in chopper.png; +1 is the other rotor phase. */
+enum
+{
+    F_SIDE = 0,
+    F_NOSE_DOWN = 2,
+    F_NOSE_UP = 4,
+    F_QUARTER = 6,
+    F_FRONT = 8,
+    F_BANK = 10,
+};
+static uint8_t frame;
+static bool flip; /* drawn facing right */
 
 void player_init(void)
 {
-    player_reset();
-}
-
-void player_reset(void)
-{
-    chopper_world_x = TO_SUB(HOME_BASE_X);
-    chopper_y = TO_SUB(GROUND_Y);
+    player_status = PL_LANDED;
+    chopper_world_x = TO_SUB(CHOPPER_START_X);
+    chopper_y = GROUND_Y_SUB;
     chopper_vel_x = 0;
     chopper_vel_y = 0;
     chopper_heading = FACING_LEFT;
-    last_side_facing = -1;
-    player_status = PL_LANDED;
+    next_heading = FACING_LEFT;
+    last_side = -1;
+    is_turning = false;
+    turn_timer = 0;
     chopper_is_landed = true;
-    blade_anim = 0;
-    rotor_sound_timer = 0;
     fire_cooldown = 0;
-    turn_anim_timer = 0;
-    crash_timer = 0;
+    respawn_timer = 0;
+    blink = 90;
+    frame = F_SIDE;
+    flip = false;
 
-    /* Center camera around chopper */
-    camera_x = chopper_world_x - TO_SUB(SCREEN_W / 2 - 16);
-    if (camera_x < 0) camera_x = 0;
-    if (camera_x > TO_SUB(WORLD_MAX_X)) camera_x = TO_SUB(WORLD_MAX_X);
+    camera_x = chopper_world_x - TO_SUB(160 - CHOPPER_W / 2);
+    if (camera_x > CAMERA_MAX_X)
+        camera_x = CAMERA_MAX_X;
+    if (camera_x < 0)
+        camera_x = 0;
 }
 
 void player_kill(void)
 {
-    if (player_status == PL_CRASHING || player_status == PL_RESPAWN_WAIT)
+    if (!player_alive() || blink || chopper_invulnerable)
         return;
-
     player_status = PL_CRASHING;
-    crash_timer = 0;
+    respawn_timer = 75;
     sfx_player(SFX_PLAYER_DIE, SFX_PRI_TOP);
-
-    int16_t screen_x = FROM_SUB(chopper_world_x - camera_x);
-    int16_t screen_y = FROM_SUB(chopper_y);
-    explosion_spawn(screen_x + 8, screen_y, true);
-
+    explosion_spawn(FROM_SUB(chopper_world_x) + CHOPPER_W / 2, FROM_SUB(chopper_y) + CHOPPER_H / 2, true);
     if (lives > 0)
         lives--;
+    /* Everyone aboard is lost with the chopper. */
+    lost_count += cargo_count;
+    cargo_count = 0;
+}
+
+static void friction(void)
+{
+    if (chopper_vel_x > 0)
+        chopper_vel_x -= FRICTION_RATE;
+    else if (chopper_vel_x < 0)
+        chopper_vel_x += FRICTION_RATE;
+}
+
+static void accel(int8_t dir, int16_t limit)
+{
+    if (dir < 0 && chopper_vel_x > -limit)
+        chopper_vel_x -= ACCEL_RATE;
+    else if (dir > 0 && chopper_vel_x < limit)
+        chopper_vel_x += ACCEL_RATE;
+}
+
+static void fire(void)
+{
+    int16_t px = FROM_SUB(chopper_world_x);
+    int16_t py = FROM_SUB(chopper_y);
+    if (chopper_heading == FACING_FRONT) {
+        bomb_spawn(px + CHOPPER_W / 2 - 4, py + CHOPPER_H - 4, chopper_vel_x);
+        sfx_player(SFX_BOMB_DROP, SFX_PRI_EVENT);
+        fire_cooldown = 18;
+        return;
+    }
+    /* The cannon points where the nose does: down while speeding up,
+     * up while braking. */
+    int8_t d = (int8_t)chopper_heading;
+    int16_t vy = frame == F_NOSE_DOWN ? TO_SUB(2) : (frame == F_NOSE_UP ? -TO_SUB(1) : 0);
+    int16_t nose = d < 0 ? px - 4 : px + CHOPPER_W - 4;
+    bullet_spawn(nose, py + 12 + (vy > 0 ? 2 : 0), d * TO_SUB(6) + chopper_vel_x, vy);
+    sfx_player(SFX_VULCAN, SFX_PRI_FIRE);
+    fire_cooldown = 7;
 }
 
 void player_update(void)
 {
-    if (player_status == PL_RESPAWN_WAIT) {
-        if (lives > 0) {
-            player_reset();
-        } else {
-            gstate = GS_GAMEOVER;
-        }
-        return;
-    }
+    if (fire_cooldown)
+        fire_cooldown--;
+    if (blink)
+        blink--;
 
     if (player_status == PL_CRASHING) {
-        crash_timer++;
-        /* Chopper tumbles down with gravity if airborne */
-        if (chopper_y < TO_SUB(GROUND_Y)) {
-            chopper_y += TO_SUB(3);
-        } else {
-            chopper_y = TO_SUB(GROUND_Y);
+        /* Tumble down, burning. */
+        chopper_vel_y += 3;
+        chopper_y += chopper_vel_y;
+        chopper_world_x += chopper_vel_x;
+        if ((frame_count & 7) == 0)
+            small_explosion_spawn(chopper_cx(), FROM_SUB(chopper_y) + 6);
+        if (chopper_y >= GROUND_Y_SUB) {
+            chopper_y = GROUND_Y_SUB;
+            chopper_vel_y = 0;
+            chopper_vel_x = 0;
+            if (respawn_timer > 30) {
+                explosion_spawn(chopper_cx(), GROUND_LINE - 12, true);
+                respawn_timer = 30;
+            }
         }
-        if (crash_timer > 90) {
+        if (--respawn_timer == 0) {
             player_status = PL_RESPAWN_WAIT;
+            respawn_timer = 60;
         }
         return;
     }
-
-    /* Blade rotor animation */
-    blade_anim = (blade_anim + 1) & 1;
-
-    /* Periodic rotor thumping SFX */
-    if (++rotor_sound_timer >= 12) {
-        rotor_sound_timer = 0;
-        sfx_player(SFX_ROTOR, SFX_PRI_FIRE);
+    if (player_status == PL_RESPAWN_WAIT) {
+        if (--respawn_timer == 0 && lives > 0)
+            player_init();
+        return;
     }
 
-    if (fire_cooldown > 0)
-        fire_cooldown--;
+    if (debug_warp_x) {
+        chopper_world_x = TO_SUB(debug_warp_x);
+        chopper_y = TO_SUB(debug_warp_y);
+        camera_x = chopper_world_x - TO_SUB(150);
+        debug_warp_x = 0;
+    }
+    chopper_is_landed = chopper_y >= GROUND_Y_SUB;
 
-    /* Rotate Control (Button 2) */
-    if (in_pressed & IN_ROTATE) {
-        turn_anim_timer = 6;
-        if (chopper_heading == FACING_LEFT) {
-            chopper_heading = FACING_FRONT;
-            last_side_facing = -1;
-        } else if (chopper_heading == FACING_RIGHT) {
-            chopper_heading = FACING_FRONT;
-            last_side_facing = 1;
+    /* Turning: left -> front -> right and back, one step per press. */
+    if ((in_pressed & IN_ROTATE) && !is_turning) {
+        if (chopper_heading != FACING_FRONT) {
+            last_side = (int8_t)chopper_heading;
+            next_heading = FACING_FRONT;
         } else {
-            /* Currently facing front: turn to opposite side of where we came */
-            if (last_side_facing == -1) {
-                chopper_heading = FACING_RIGHT;
-                last_side_facing = 1;
-            } else {
-                chopper_heading = FACING_LEFT;
-                last_side_facing = -1;
-            }
+            next_heading = (chopper_heading_t)(-last_side);
         }
-    }
-    if (turn_anim_timer > 0)
-        turn_anim_timer--;
-
-    /* Altitude Control */
-    if (in_held & IN_UP) {
-        chopper_y -= VERTICAL_SPEED;
-        if (chopper_y < TO_SUB(CEILING_Y))
-            chopper_y = TO_SUB(CEILING_Y);
-        chopper_is_landed = false;
-        player_status = PL_ALIVE;
-    } else if (in_held & IN_DOWN) {
-        chopper_y += VERTICAL_SPEED;
-        if (chopper_y >= TO_SUB(GROUND_Y)) {
-            chopper_y = TO_SUB(GROUND_Y);
-            if (chopper_vel_x == 0) {
-                chopper_is_landed = true;
-                player_status = PL_LANDED;
-            }
-        }
+        is_turning = true;
+        turn_timer = TURN_DURATION;
     }
 
-    /* Horizontal Control */
-    if (in_held & IN_LEFT) {
-        chopper_vel_x -= ACCEL_X;
-        if (chopper_vel_x < -MAX_SPEED_X)
-            chopper_vel_x = -MAX_SPEED_X;
-        chopper_is_landed = false;
-        player_status = PL_ALIVE;
-    } else if (in_held & IN_RIGHT) {
-        chopper_vel_x += ACCEL_X;
-        if (chopper_vel_x > MAX_SPEED_X)
-            chopper_vel_x = MAX_SPEED_X;
-        chopper_is_landed = false;
-        player_status = PL_ALIVE;
+    int8_t stick = (in_held & IN_LEFT) ? -1 : ((in_held & IN_RIGHT) ? 1 : 0);
+    if (chopper_is_landed)
+        stick = 0;
+
+    if (is_turning) {
+        int8_t side = chopper_heading != FACING_FRONT ? (int8_t)chopper_heading : (int8_t)next_heading;
+        frame = F_QUARTER;
+        flip = side > 0;
+        friction();
+        if (--turn_timer == 0) {
+            chopper_heading = next_heading;
+            is_turning = false;
+        }
+    } else if (chopper_heading == FACING_FRONT) {
+        if (stick) {
+            frame = F_BANK;
+            flip = stick > 0;
+            accel(stick, ONE_PIXEL + 8);
+        } else {
+            frame = F_FRONT;
+            flip = false;
+            friction();
+        }
     } else {
-        /* Natural deceleration / momentum */
-        if (chopper_vel_x > 0) {
-            chopper_vel_x -= DECEL_X;
-            if (chopper_vel_x < 0) chopper_vel_x = 0;
-        } else if (chopper_vel_x < 0) {
-            chopper_vel_x += DECEL_X;
-            if (chopper_vel_x > 0) chopper_vel_x = 0;
-        }
-    }
-
-    /* Update Position */
-    chopper_world_x += chopper_vel_x;
-    if (chopper_world_x < TO_SUB(16)) {
-        chopper_world_x = TO_SUB(16);
-        chopper_vel_x = 0;
-    }
-    if (chopper_world_x > TO_SUB(WORLD_W_PX - 32)) {
-        chopper_world_x = TO_SUB(WORLD_W_PX - 32);
-        chopper_vel_x = 0;
-    }
-
-    /* Check landing status when on the ground */
-    if (chopper_y >= TO_SUB(GROUND_Y)) {
-        chopper_y = TO_SUB(GROUND_Y);
-        if (chopper_vel_x == 0) {
-            chopper_is_landed = true;
-            player_status = PL_LANDED;
-        }
-    }
-
-    /* Weapons Firing (Button 1) */
-    if ((in_held & IN_FIRE) && fire_cooldown == 0) {
-        int16_t px = FROM_SUB(chopper_world_x);
-        int16_t py = FROM_SUB(chopper_y);
-
-        if (chopper_heading == FACING_LEFT) {
-            bullet_spawn(px - 4, py + 8, -TO_SUB(7), 0);
-            sfx_player(SFX_VULCAN, SFX_PRI_EVENT);
-            fire_cooldown = 8;
-        } else if (chopper_heading == FACING_RIGHT) {
-            bullet_spawn(px + 28, py + 8, TO_SUB(7), 0);
-            sfx_player(SFX_VULCAN, SFX_PRI_EVENT);
-            fire_cooldown = 8;
+        int8_t d = (int8_t)chopper_heading;
+        flip = d > 0;
+        if (stick == d) {
+            frame = F_NOSE_DOWN;
+            accel(stick, MAX_SPEED);
+        } else if (stick == -d) {
+            frame = F_NOSE_UP;
+            accel(stick, MAX_SPEED / 2);
         } else {
-            /* Facing Front: Drop Bomb! */
-            bomb_spawn(px + 12, py + 12, chopper_vel_x >> 1);
-            sfx_player(SFX_BOMB_DROP, SFX_PRI_EVENT);
-            fire_cooldown = 16;
+            frame = F_SIDE;
+            friction();
         }
     }
 
-    /* Smooth Camera Tracking */
-    int32_t target_cam = chopper_world_x - TO_SUB(SCREEN_W / 2 - 16);
-    if (target_cam < 0) target_cam = 0;
-    if (target_cam > TO_SUB(WORLD_MAX_X)) target_cam = TO_SUB(WORLD_MAX_X);
+    /* Altitude. */
+    if (in_held & IN_UP)
+        chopper_vel_y = -CLIMB_SPEED;
+    else if (in_held & IN_DOWN)
+        chopper_vel_y = DIVE_SPEED;
+    else
+        chopper_vel_y = chopper_is_landed ? 0 : GRAVITY_SPEED;
+    chopper_y += chopper_vel_y;
+    if (chopper_y < CEILING_Y_SUB)
+        chopper_y = CEILING_Y_SUB;
+    if (chopper_y >= GROUND_Y_SUB) {
+        chopper_y = GROUND_Y_SUB;
+        chopper_vel_x = 0;
+        chopper_vel_y = 0;
+        chopper_is_landed = true;
+        player_status = PL_LANDED;
+    } else {
+        chopper_is_landed = false;
+        player_status = PL_ALIVE;
+    }
 
-    /* Camera follows smoothly */
-    camera_x += (target_cam - camera_x) >> 3;
-    if (camera_x < 0) camera_x = 0;
-    if (camera_x > TO_SUB(WORLD_MAX_X)) camera_x = TO_SUB(WORLD_MAX_X);
+    chopper_world_x += chopper_vel_x;
+    if (chopper_world_x < TO_SUB(8)) {
+        chopper_world_x = TO_SUB(8);
+        chopper_vel_x = 0;
+    } else if (chopper_world_x > TO_SUB(WORLD_W_PX - CHOPPER_W - 8)) {
+        chopper_world_x = TO_SUB(WORLD_W_PX - CHOPPER_W - 8);
+        chopper_vel_x = 0;
+    }
+
+    if ((in_held & IN_FIRE) && fire_cooldown == 0 && !chopper_is_landed && !is_turning)
+        fire();
+
+    /* The camera keeps the chopper inside its dead zone. */
+    int16_t sx = FROM_SUB(chopper_world_x - camera_x);
+    if (sx > SCROLL_RIGHT_EDGE)
+        camera_x += TO_SUB(sx - SCROLL_RIGHT_EDGE);
+    else if (sx < SCROLL_LEFT_EDGE)
+        camera_x -= TO_SUB(SCROLL_LEFT_EDGE - sx);
+    if (camera_x < 0)
+        camera_x = 0;
+    if (camera_x > CAMERA_MAX_X)
+        camera_x = CAMERA_MAX_X;
 }
 
 void player_render(void)
 {
-    if (player_status == PL_CRASHING) {
+    if (player_status == PL_RESPAWN_WAIT || (blink && (frame_count & 2))) {
         spr_hide(SPR_CHOPPER);
         return;
     }
-
-    uint8_t base_frame;
-    if (turn_anim_timer > 0) {
-        base_frame = (chopper_heading == FACING_RIGHT) ? 6 : 2;
-    } else if (chopper_heading == FACING_FRONT) {
-        if (chopper_vel_x < -TO_SUB(1))
-            base_frame = 14; /* Bank Left */
-        else if (chopper_vel_x > TO_SUB(1))
-            base_frame = 16; /* Bank Right */
-        else
-            base_frame = 4;  /* Center Hover */
-    } else if (chopper_heading == FACING_LEFT) {
-        if (chopper_vel_x < -TO_SUB(1))
-            base_frame = 10; /* Accelerate Left */
-        else if (chopper_vel_x > TO_SUB(1))
-            base_frame = 12; /* Brake Left */
-        else
-            base_frame = 0;  /* Idle Left */
-    } else {
-        /* FACING_RIGHT */
-        if (chopper_vel_x > TO_SUB(1))
-            base_frame = 20; /* Accelerate Right */
-        else if (chopper_vel_x < -TO_SUB(1))
-            base_frame = 18; /* Brake Right */
-        else
-            base_frame = 8;  /* Idle Right */
-    }
-
-    uint8_t final_frame = base_frame + blade_anim;
-    uint16_t sprite_addr = XRAM_IMG_CHOPPER + (uint16_t)final_frame * CHOPPER_FRAME_BYTES;
-
-    int16_t screen_x = FROM_SUB(chopper_world_x - camera_x);
-    int16_t screen_y = FROM_SUB(chopper_y);
-
-    spr_setup(SPR_CHOPPER, sprite_addr, PAL_ADDR(PAL_CHOPPER), WH(32, 16), OPT4);
-    spr_pos(SPR_CHOPPER, screen_x, screen_y);
+    uint8_t f = frame + ((frame_count >> 1) & 1);
+    if (player_status == PL_CRASHING)
+        f = F_BANK + ((frame_count >> 2) & 1);
+    spr_place(SPR_CHOPPER, XRAM_IMG_CHOPPER + (uint16_t)f * CHOPPER_FRAME_BYTES, PAL_CHOPPER, WH(CHOPPER_W, CHOPPER_H),
+              flip ? OPT4_FLIP : OPT4, FROM_SUB(chopper_world_x - camera_x), FROM_SUB(chopper_y));
 }

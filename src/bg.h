@@ -6,8 +6,9 @@
 
 void bg_init(void);
 void bg_update(int16_t camera_x_px);
+void bg_animate(void);
 void bg_commit(void);
-void bg_breach_bunker(uint8_t base_col);
-void bg_reset_bunkers(void);
+void bg_breach_door(uint8_t compound);
+void bg_reset_doors(void);
 
 #endif /* BG_H */

@@ -5,6 +5,7 @@
 #include "bg.h"
 #include "compounds.h"
 #include "enemies.h"
+#include "fx.h"
 #include "game.h"
 #include "hostages.h"
 #include "hud.h"
@@ -31,7 +32,15 @@ uint16_t game_timer;
 uint8_t frame_count;
 volatile uint16_t lag_frames;
 
-static uint32_t next_extend = 10000;
+/* A copy of the game's numbers for test scripts to read. The game keeps
+ * the real ones in registers between frames, so memory can be stale. */
+volatile struct
+{
+    uint8_t state, cargo, saved, lost, lives, breached;
+    uint16_t score;
+} test_stats;
+
+static uint32_t next_extend = 20000;
 static uint32_t clear_bonus = 0;
 static uint16_t lfsr_state = 0xACE1u;
 
@@ -62,7 +71,7 @@ void add_score(uint16_t pts)
             lives++;
             sfx_player(SFX_EXTEND, SFX_PRI_TOP);
         }
-        next_extend += 10000;
+        next_extend += 20000;
     }
 }
 
@@ -89,18 +98,44 @@ void hiscore_save(void)
     close(fd);
 }
 
+/* The logo, on the hostage sprites (there are none on the title): for each
+ * 64-pixel piece a shadow, a light rim and the face, back to front. */
+#define LOGO_X ((SCREEN_W - LOGO_W) / 2)
+#define LOGO_Y 42
+
+static void logo_show(void)
+{
+    static const int8_t off[3][2] = {{2, 2}, {-1, -1}, {0, 0}};
+    for (uint8_t pass = 0; pass < 3; pass++)
+        for (uint8_t p = 0; p < LOGO_PIECES; p++)
+            spr_place(SPR_HOSTAGE_START + pass * LOGO_PIECES + p, XRAM_IMG_LOGO + p * LOGO_PIECE_BYTES, PAL_LOGO,
+                      WH(LOGO_PIECE_W, LOGO_H), MODE5_1BPP, LOGO_X + p * LOGO_PIECE_W + off[pass][0],
+                      LOGO_Y + off[pass][1]);
+    /* Point each pass at its own two colors. */
+    for (uint8_t pass = 0; pass < 3; pass++)
+        for (uint8_t p = 0; p < LOGO_PIECES; p++)
+            spr[SPR_HOSTAGE_START + pass * LOGO_PIECES + p].palette_ptr = PAL_ADDR(PAL_LOGO) + pass * 4;
+}
+
+_Static_assert(3 * LOGO_PIECES <= SPR_HOSTAGE_COUNT, "the logo borrows the hostage sprites");
+
 static void enter_title(void)
 {
     gstate = GS_TITLE;
     game_timer = 0;
     spr_hide_all();
-    spr_commit();
     music_play("ROM:Title.vgm");
+    compounds_init();
+    hostages_init();
+    projectiles_init();
 
     hud_clear();
-    hud_text(4, 0, "RPMEGACHOPPER II: NORTHERN LIGHTS", 8, 1);
-    hud_text(6, 1, "PRESS FIRE OR START TO RESCUE", 10, 1);
-    hud_commit();
+    hud_text(12, 0, "HIGH SCORE", C_GOLD);
+    hud_num(23, 0, hiscore, 6, C_WHITE);
+    hud_text(1, 1, "ARROWS FLY   Z FIRE/BOMB   X TURN", C_GREY);
+    msg_clear();
+    logo_show();
+    msg_band(4, "OPERATION  NORTHERN  LIGHTS", C_AURORA);
 }
 
 static void start_level(uint8_t lvl)
@@ -112,8 +147,8 @@ static void start_level(uint8_t lvl)
     cargo_count = 0;
     current_level = lvl;
 
+    spr_hide_all();
     player_init();
-    bg_reset_bunkers();
     compounds_init();
     hostages_init();
     enemies_init();
@@ -121,9 +156,10 @@ static void start_level(uint8_t lvl)
 
     hud_clear();
     hud_update();
-    hud_commit();
+    msg_flash("SHOOT OR BOMB THE PRISON DOORS OPEN", C_AURORA, 180);
+    msg_center(0, "SECTOR  ", C_WHITE);
+    msg_num(23, 0, lvl, 1, C_GOLD);
 
-    /* Start the fast, driving Airwolf soundtrack! */
     music_play("ROM:Stage1.vgm");
 }
 
@@ -131,7 +167,7 @@ static void enter_play(void)
 {
     score = 0;
     lives = STARTING_LIVES;
-    next_extend = 10000;
+    next_extend = 20000;
     start_level(1);
 }
 
@@ -141,21 +177,18 @@ static void enter_level_clear(void)
     game_timer = 0;
     music_play_once("ROM:Victory.vgm");
 
-    /* Hostage rescue bonus: 500 pts per saved hostage */
-    clear_bonus = (uint32_t)saved_count * 500;
+    clear_bonus = (uint32_t)saved_count * 200;
     add_score(clear_bonus);
-
     if (score > hiscore) {
         hiscore = score;
         hiscore_save();
     }
-
-    hud_clear();
-    hud_text(6, 0, "MISSION ACCOMPLISHED! ALL CLEAR", 10, 1);
-    hud_text(3, 1, "SAVED:   /64  BONUS:+      PTS", 8, 1);
-    hud_u16(10, 1, saved_count, 2, 7, 1);
-    hud_u32(22, 1, clear_bonus, 5, 10, 1);
-    hud_commit();
+    msg_clear();
+    msg_band(0, "SECTOR CLEAR!", C_GOLD);
+    msg_center(2, "HOSTAGES SAVED    / 64", C_LGREEN);
+    msg_num(24, 2, saved_count, 2, C_WHITE);
+    msg_center(3, "RESCUE BONUS       PTS", C_CYAN);
+    msg_num(23, 3, clear_bonus, 5, C_WHITE);
 }
 
 static void enter_gameover(void)
@@ -167,27 +200,37 @@ static void enter_gameover(void)
         hiscore_save();
     }
     music_play_once("ROM:Gameover.vgm");
+    msg_clear();
+    msg_band(1, "M I S S I O N   F A I L E D", C_RED);
+    msg_center(3, "SAVED    / 64", C_GREY);
+    msg_num(19, 3, saved_count, 2, C_WHITE);
+}
 
-    hud_clear();
-    hud_text(11, 0, "M I S S I O N   F A I L E D", 9, 1);
-    hud_text(7, 1, "GAME OVER - PRESS FIRE OR START", 7, 1);
-    hud_commit();
+/* Things that keep moving in every state: the sky and the snow. */
+static void ambience(int16_t cam_dx)
+{
+    bg_animate();
+    snow_update(cam_dx);
+    snow_render();
 }
 
 int main(void)
 {
     xreg_vga_canvas(CANVAS_320X240);
     input_init();
-    spr_init();
     bg_init();
     hud_init();
+    spr_init();
     music_init();
     sfx_init();
     hiscore_load();
     rng_seed(ria_vsync());
+    snow_init();
 
     enter_title();
 
+    int16_t last_cam = 0;
+    int8_t pan = 1;
     uint8_t vs = ria_vsync();
     while (1) {
         uint8_t now;
@@ -197,85 +240,104 @@ int main(void)
             lag_frames++;
         vs = now;
 
-        /* Hardware commits immediately following VSYNC */
+        /* What the last frame computed goes to the VGA right after vsync. */
         spr_commit();
         bg_commit();
         hud_commit();
 
-        /* Audio & Input polling */
         music_update();
         sfx_update();
         input_update();
         frame_count++;
+        msg_tick();
 
         switch (gstate) {
         case GS_TITLE:
+            /* Drift over the battlefield while the title is up. */
             game_timer++;
-            if ((game_timer & 128) == 0) {
-                if (game_timer & 32) {
-                    hud_text(6, 1, "PRESS FIRE OR START TO RESCUE", 10, 1);
-                } else {
-                    hud_text(6, 1, "                             ", 10, 1);
-                }
-            } else {
-                hud_text(6, 1, "   HIGH SCORE:        PTS    ", 13, 1);
-                hud_u32(21, 1, hiscore, 6, 8, 1);
-            }
-            if (in_pressed & (IN_FIRE | IN_START)) {
+            camera_x += pan * 6;
+            if (camera_x <= 0 || camera_x >= CAMERA_MAX_X)
+                pan = -pan;
+            msg_center(5, (game_timer & 32) ? "PRESS FIRE TO START" : "", C_LGREEN);
+            enemies_render();
+            compounds_render();
+            if (in_pressed & (IN_FIRE | IN_START))
                 enter_play();
-            }
             break;
 
         case GS_PLAY:
+            if (in_pressed & IN_START) {
+                gstate = GS_PAUSE;
+                msg_center(2, "PAUSED", C_WHITE);
+                break;
+            }
+            game_timer++;
             player_update();
             compounds_update();
             hostages_update();
             enemies_update();
             projectiles_update();
 
-            /* Update dual-layer parallax scroll */
-            bg_update(FROM_SUB(camera_x));
-
-            /* Render active actors to sprite RAM mirror */
             player_render();
             compounds_render();
             hostages_render();
             enemies_render();
             projectiles_render();
+            if ((frame_count & 3) == 0)
+                hud_update();
 
-            /* Update HUD status & radar */
-            hud_update();
-
-            /* Check Game Over or Stage Clear */
-            if (player_status == PL_RESPAWN_WAIT && lives == 0) {
+            if (player_status == PL_RESPAWN_WAIT && lives == 0)
                 enter_gameover();
-            } else if (saved_count + lost_count >= TOTAL_HOSTAGES) {
+            else if (saved_count + lost_count >= TOTAL_HOSTAGES && cargo_count == 0)
                 enter_level_clear();
+            break;
+
+        case GS_PAUSE:
+            if (in_pressed & IN_START) {
+                gstate = GS_PLAY;
+                msg_center(2, "", C_WHITE);
             }
             break;
 
         case GS_LEVEL_CLEAR:
             game_timer++;
-            if (game_timer > 90) {
-                if (game_timer & 32) {
-                    hud_text(3, 1, " PRESS FIRE TO ADVANCE SECTOR ", 10, 1);
-                } else {
-                    hud_text(3, 1, "SAVED:   /64  BONUS:+      PTS", 8, 1);
-                    hud_u16(10, 1, saved_count, 2, 7, 1);
-                    hud_u32(22, 1, clear_bonus, 5, 10, 1);
-                }
-            }
-            if (game_timer > 60 && (in_pressed & (IN_FIRE | IN_START))) {
+            hostages_update();
+            hostages_render();
+            projectiles_update();
+            projectiles_render();
+            msg_center(5, (game_timer > 90 && (game_timer & 32)) ? "PRESS FIRE FOR THE NEXT SECTOR" : "", C_WHITE);
+            if (game_timer > 90 && (in_pressed & (IN_FIRE | IN_START)))
                 start_level(current_level + 1);
-            }
             break;
 
         case GS_GAMEOVER:
             game_timer++;
-            if (game_timer > 90 && (in_pressed & (IN_FIRE | IN_START))) {
+            projectiles_update();
+            projectiles_render();
+            msg_center(5, (game_timer > 90 && (game_timer & 32)) ? "PRESS FIRE" : "", C_WHITE);
+            if (game_timer > 90 && (in_pressed & (IN_FIRE | IN_START)))
                 enter_title();
-            }
             break;
         }
+
+        test_stats.state = gstate;
+        test_stats.cargo = cargo_count;
+        test_stats.saved = saved_count;
+        test_stats.lost = lost_count;
+        test_stats.lives = lives;
+        test_stats.score = (uint16_t)score;
+        {
+            uint8_t b = 0;
+            for (uint8_t i = 0; i < NUM_COMPOUNDS; i++)
+                b |= compounds[i].breached << i;
+            test_stats.breached = b;
+        }
+
+        int16_t cam = FROM_SUB(camera_x);
+        if (gstate != GS_PAUSE) {
+            ambience(cam - last_cam);
+            bg_update(cam);
+        }
+        last_cam = cam;
     }
 }

@@ -33,14 +33,14 @@ from .furwriter import NOTE_OFF, RowCell, note_value
 from .silvergun import (CRASH, HAT, HIGH_TOM, KICK, LOW_TOM, SNARE, Chord, _chord_tones, _nearest_chord_tone,
                         _scale_for, _step)
 
-OPEN_HAT = 180
+OPEN_HAT = HAT  # the kit has one hat; open hats are played louder
 RPB, BEAT = 16, 4  # 4/4 on the 16th grid
 
 
 @dataclass
 class Style:
     name: str
-    pools: Dict[str, List[int]]
+    pools: Dict[str, List[int]]  # melodic patches, 00-7F only
     minor_bank: List[Tuple[int, List[Chord]]]
     major_bank: List[Tuple[int, List[Chord]]]
     motifs: List[List[int]]   # lead bar rhythms, in rows
@@ -429,8 +429,8 @@ def m(o):
 STYLES: Dict[int, Style] = {
     10: Style(
         name="fmrock",
-        pools={"lead": [29, 30, 157, 158, 62], "arp": [28, 156, 29], "bass": [33, 34, 161, 162],
-               "pad": [18, 146, 61, 62]},
+        pools={"lead": [29, 30, 29, 30, 62], "arp": [28, 28, 29], "bass": [33, 34, 33, 34],
+               "pad": [18, 18, 61, 62]},
         minor_bank=[
             (1, [m(0), M(8), M(10), m(0)]),     # i bVI bVII i
             (1, [m(0), M(10), M(8), M(10)]),    # i bVII bVI bVII
@@ -453,7 +453,7 @@ STYLES: Dict[int, Style] = {
     ),
     11: Style(
         name="eurobeat",
-        pools={"lead": [62, 63, 81, 86, 61], "arp": [80, 6, 7, 81, 4], "bass": [38, 39, 166, 167],
+        pools={"lead": [62, 63, 81, 86, 61], "arp": [80, 6, 7, 81, 4], "bass": [38, 39, 38, 39],
                "pad": [90, 89, 50, 51]},
         minor_bank=[
             (1, [m(0), M(8), M(10), m(0)]),     # i bVI bVII i
@@ -476,7 +476,7 @@ STYLES: Dict[int, Style] = {
     ),
     12: Style(
         name="chiparcade",
-        pools={"lead": [80, 82, 83, 81], "arp": [80, 82, 8, 11, 13], "bass": [38, 39, 33, 166],
+        pools={"lead": [80, 82, 83, 81], "arp": [80, 82, 8, 11, 13], "bass": [38, 39, 33, 38],
                "pad": [80, 82, 83]},
         minor_bank=[
             (1, [m(0), M(10), M(8), M(10)]),    # i bVII bVI bVII
@@ -498,7 +498,7 @@ STYLES: Dict[int, Style] = {
     ),
     13: Style(
         name="fusion",
-        pools={"lead": [65, 64, 66, 62, 81], "arp": [4, 5, 132, 130, 11], "bass": [36, 37, 164, 165, 35],
+        pools={"lead": [65, 64, 66, 62, 81], "arp": [4, 5, 4, 2, 11], "bass": [36, 37, 36, 37, 35],
                "pad": [48, 89, 50, 16]},
         minor_bank=[
             (1, [m(0), m(5), M(10), M(3)]),     # i iv bVII bIII
@@ -523,7 +523,7 @@ STYLES: Dict[int, Style] = {
         pools={
             "lead": [62, 63, 81, 84, 56, 61],
             "arp": [80, 81, 89, 4, 5, 82],
-            "bass": [38, 39, 166, 167],
+            "bass": [38, 39, 38, 39],
             "pad": [89, 90, 48, 50, 51],
         },
         minor_bank=[

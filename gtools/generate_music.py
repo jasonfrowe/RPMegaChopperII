@@ -144,9 +144,12 @@ def _parse_patch(spec: str) -> dict:
         values = [int(p, 16) for p in parts]
     except ValueError:
         raise ValueError(f"--patch values must be 2-digit hex bytes (e.g. FD), got {spec!r}")
-    for v in values:
-        if not (0 <= v <= 255):
-            raise ValueError(f"--patch value {v:#x} out of range 00-FF")
+    for role, v in zip(ROLE_ORDER, values):
+        if role in compose.DRUM_ROLES:
+            if v not in compose.DRUM_PATCHES:
+                raise ValueError(f"--patch {role} must be a drum patch (FD, FE or FF), got {v:02X}")
+        elif not (0 <= v <= compose.MELODIC_MAX):
+            raise ValueError(f"--patch {role} must be a melodic patch 00-7F, got {v:02X}")
     return dict(zip(ROLE_ORDER, values))
 
 
@@ -206,6 +209,7 @@ def generate_one(spec: "tracks.TrackSpec", seed: int, bank, out_dir: Path,
         name=f"{spec.resource} - {spec.description}", mood=spec.mood, seed=seed, bank=bank,
         vol_overrides=vol_overrides, patch_overrides=patch_overrides, style=style, prog_override=prog,
     )
+    compose.check_patches(song)
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{stem}.fur"
     write_fur(str(out_path), song)

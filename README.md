@@ -6,11 +6,12 @@
 
 A fast-paced tactical helicopter rescue game for the **Picocomputer 6502**, sequel to *RPMegaChopper*.
 
-Built from the ground up utilizing the modern RP6502 SDK, **RP Mega Chopper II** takes full advantage of the Picocomputer's hardware capabilities:
-* **Mode 5 Custom 4bpp Sprites**: Multi-frame animated sprites with native custom dimensions (32×16 SuperChopper, 40×16 patrolling Heavy Tanks, 32×16 Supersonic Jets, 16×32 Drone Balloons, 16×16 Hostages, Canadian Maple Leaf flags, weakpoint target reticles, and particle explosions).
-* **Mode 2 Parallax Scrolling**: Dual-layer 4bpp tilemaps spanning a 4,096-pixel world. Plane 0 scrolls distant snowy peaks and aurora skies at 3/8 speed; Plane 1 renders the snowbanks, pine forests, medical camps, and enemy compounds with horizontal wrap-around.
-* **Top Status HUD**: Plane 2 overlay featuring real-time Score, Saved Hostages, Cargo count (`00/16`), Casualties Lost, Spare Choppers, and a dynamic 22-character tactical Radar / Compass.
-* **Yamaha OPL2 Sound & Music**: True 9-channel FM synthesis audio engine powered by the `xreg_ria_opl` soundcard. Features custom VGM streaming (with an iconic driving 16th-note **Airwolf** galloping synth bass and brass lead) plus prioritized polyphonic sound effects (rotor engine, vulcan fire, falling bombs, tank shells, jet flybys, compound breaches, and hostage rescue chimes).
+Built from the ground up on the modern RP6502 SDK, using all three VGA planes:
+* **Three-depth parallax**: a night sky with a shimmering, palette-cycled **aurora** and a snowy mountain range (plane 0, 8x8 tiles, quarter speed), rolling hills, pine forests, lit cabins and blinking radio masts (plane 1, half speed), and the 4,096-pixel battlefield itself (plane 2, 16x16 tiles).
+* **Mode 5 sprites** drawn with lighting and outlines: a 40x20 rescue chopper that pitches nose-down to accelerate and turns to face the screen to bomb, winter-camo tanks, interceptor jets, tethered mine balloons, running and waving hostages, a rippling maple-leaf flag, fireball explosions and falling snow. Right-facing frames are hardware flips.
+* **Title logo** in 1-bit sprites, drawn three times (shadow, rim, face) for a bevel.
+* **Status bar and message box** in Mode 1 text, sharing plane 2 with the ground on their own scanlines: score, rescued and lost counts, spare choppers, a 16-seat cargo gauge and a radar of the whole sector.
+* **Yamaha OPL2 music and sound**: VGM streaming of the Airwolf-style soundtrack on channels 1-7, sound effects on 8-9.
 
 ---
 
@@ -22,7 +23,7 @@ As pilot of the experimental **SuperChopper**, your mission is to:
 1. Infiltrate enemy territory across a 4,096-pixel hostile corridor.
 2. Bomb the reinforced blast doors of enemy bunkers to free hostages trapped inside.
 3. Land safely on the snowbanks so freed hostages can reach and board your transport hold.
-4. Ferry hostages back to the Canadian Home Base medical station at the western perimeter.
+4. Ferry hostages back to the Canadian Home Base medical station at the eastern end of the sector.
 5. Evacuate every hostage without letting enemy armor, jet fighters, or anti-air flak destroy your aircraft or slaughter the fleeing survivors!
 
 ---
@@ -31,30 +32,21 @@ As pilot of the experimental **SuperChopper**, your mission is to:
 
 | Action | Keyboard | Gamepad |
 | :--- | :--- | :--- |
-| **Move / Altitude** | Arrow Keys / `W`, `A`, `S`, `D` | D-Pad / Left Analog Stick |
-| **Fire Vulcan / Drop Bomb** | `Z`, `J`, or `Space` | Button **A** / **R1** |
-| **Rotate Facing (L / Front / R)** | `X`, `K`, or `C` | Button **B** / **C** / **X** / **L1** |
-| **Start / Pause** | `Enter` / `P` | **Start** / **Select** |
+| **Fly** | Arrow keys / `W` `A` `S` `D` | D-pad / left stick |
+| **Fire cannon / drop bomb** | `Z`, `J` or `Space` | **A** / **R1** |
+| **Turn (left / front / right)** | `X`, `K` or `C` | **B** / **C** / **X** / **L1** |
+| **Start / pause** | `Enter` / `P` | **Start** / **Select** |
 
-### Flight & Combat Tactics
-* **Vulcan Cannon**: When facing **Left** or **Right**, primary fire shoots high-velocity auto-cannon rounds horizontally to neutralize aerial drones, incoming jets, and enemy tanks.
-* **Precision Bombing**: Press **Rotate** to orient your chopper facing **Front** toward the screen. Primary fire now drops free-fall aerial bombs inheriting the chopper's horizontal velocity. Bombs detonate on ground contact, destroying tanks and breaching reinforced compound blast doors.
-* **Hostage Boarding**: Come to a full landing on ground snow (`chopper_y >= GROUND_Y` with horizontal velocity = 0). Waving hostages will immediately sprint toward your chopper and climb aboard.
-* **Cargo Capacity**: Your cargo bay holds up to **16 hostages**. If full, you must fly back to Home Base to disembark survivors before rescuing more.
-* **Home Base Disembarkation**: Land near the Canadian flag and medical tents at the western end of the sector ($X < 360$). Hostages will exit the helicopter and run inside the medical shelter, earning rescue bonus points.
+### How to play
+* **Open the prisons.** Each of the four compounds has a blast door marked with a red target. Shoot it, or turn to face the screen and drop a bomb on it.
+* **The cannon aims with the nose.** Speeding up tips the nose down and the tracers go down with it, which is how you hit doors and tanks; braking tips it up.
+* **Pick them up.** Land near the freed hostages and they run to the chopper and climb aboard, 16 at most. Don't come down on top of them.
+* **Bring them home.** Land on the helipad at the east end, by the flag, and they run into the medical station. Each one saved is 250 points.
+* **Watch out.** Tanks lob flak at you (and roll back in a while after you destroy them), jets come for you if you fly high, and the mine balloons explode on contact. If the chopper goes down, everyone aboard is lost.
+* **Sector clear** when every hostage is home or lost, with a 200-point bonus for each one saved. An extra chopper every 20,000 points.
 
----
-
-## Tactical Radar Display
-
-The top status bar incorporates a horizontal real-time radar strip:
-```text
-SCORE:000000 SAVED:00 CARGO:00/16 LOST:00 [H  .  .  .  ^  .  .  ] x3
-```
-* `H`: Canadian Home Base / Medical Outposts
-* `.`: Compound Bunkers (blinks when breached)
-* `^`: SuperChopper position and flight vector
-* `*`: Hostages running on foot in the snow
+### Radar
+The bottom row of the status bar shows the whole sector: prisons in red while still shut (orange while hostages are still inside, grey once empty), hostages on foot as `*`, home base at the right, and you as the flashing arrow.
 
 ---
 
@@ -84,16 +76,28 @@ Output files will be generated in `build/llvm-mos/release/`:
 
 ---
 
-## Headless Testing & Emulation
+## Graphics
 
-The repository includes test tools and the `rp6502-emu` emulator:
+All the art is generated by `gtools/gen_art.py` (needs Pillow and numpy, see
+[`gtools/README.md`](gtools/README.md)); the PNGs it writes in `images/` can be touched up by
+hand. Each background layer is painted as one image and then cut into tiles; where it
+needs more tiles than its share of XRAM, the most similar tiles are merged until it fits.
 
 ```bash
-# Run 60 frames headlessly and capture screenshot
-tools/rp6502-emu build/llvm-mos/release/RPMegaChopperII.rp6502 --frames 60 --screenshot /tmp/screen.png --mute
+.venv/bin/python gtools/gen_art.py --preview /tmp/preview   # also writes mock screens
+```
 
-# Run automated flight playtest script verifying 60 Hz frame synchronization:
-python3 tools/playtest.py flight --out /tmp/flight_test
+## Headless Testing & Emulation
+
+```bash
+# Run 100 frames headlessly and capture a screenshot
+tools/rp6502-emu build/llvm-mos/release/RPMegaChopperII.rp6502 --frames 100 --screenshot /tmp/screen.png --mute
+
+# Scripted playtests, with screenshots and the game's numbers:
+python3 tools/playtest.py rescue --out /tmp/rescue      # open a prison, load up, unload at home
+python3 tools/playtest.py campaign --out /tmp/campaign  # all 64 hostages, to the sector clear
+python3 tools/playtest.py gameover --out /tmp/gameover
+python3 tools/playtest.py soak --phi2 4000              # dropped frames with the 6502 at half speed
 ```
 
 ---
@@ -102,46 +106,29 @@ python3 tools/playtest.py flight --out /tmp/flight_test
 
 ```
 RPMegaChopperII/
-├── CMakeLists.txt              # Build configuration & asset conversion rules
-├── CMakePresets.json           # llvm-mos and toolchain presets
-├── README.md                   # This documentation
-├── gtools/                     # Generation tools (musicgen, gen_art, gen_sfx)
-│   ├── gen_art.py              # Pure Python 4bpp sprite & Mode-2 tilemap generator
-│   ├── gen_sfx.py              # OPL2 FM sound effect bank synthesizer
-│   └── musicgen/               # Airwolf & arcade style VGM generator
-├── images/                     # Generated 4bpp sprite PNGs, maps, and palettes
-│   ├── chopper.png             # 32x16 SuperChopper sprite sheet (22 frames)
-│   ├── tank.png                # 40x16 Heavy Tank sprite sheet (6 frames)
-│   ├── jet.png                 # 32x16 Fighter Jet sprite sheet (2 frames)
-│   ├── balloon.png             # 16x32 Drone Balloon sheet (3 frames)
-│   ├── hostages.png            # 16x16 Hostage sprites (10 frames)
-│   ├── bg_tiles.png            # Parallax background tiles
-│   ├── fg_tiles.png            # Foreground terrain & compound tiles
-│   ├── bg_map.bin / fg_map.bin # 256x15 Mode-2 world maps
-│   └── palettes.bin            # 16 RGB555 4bpp palettes
-├── music/                      # OPL2 VGM streaming tracks & sfx.bin
-│   ├── Stage1.vgm              # Airwolf style stage music
-│   ├── Title.vgm               # Title theme
-│   ├── Victory.vgm             # Sector clear theme
-│   ├── Gameover.vgm            # Game over theme
-│   └── sfx.bin                 # OPL2 synthesized sound effects
-├── src/                        # 6502 C Game Source Code
-│   ├── main.c                  # Main game loop, states & vsync timing
-│   ├── xram.h                  # RIA XRAM memory map and hardware registers
-│   ├── game.h                  # Physics constants and world metrics
-│   ├── player.c / .h           # Chopper flight mechanics, bombing & landing
-│   ├── compounds.c / .h        # Compound bunkers, targeting reticles & breach
-│   ├── hostages.c / .h         # Hostage AI, panic, boarding & rescue states
-│   ├── enemies.c / .h          # Tanks, Jets, Drone balloons & flag animation
-│   ├── projectiles.c / .h      # Bullets, bombs, flak shells & explosions
-│   ├── sprites.c / .h          # Mode 5 custom 4bpp sprite manager
-│   ├── bg.c / .h               # Mode 2 parallax scrolling and blast door destruction
-│   ├── hud.c / .h              # Plane 2 status bar and tactical radar
-│   ├── input.c / .h            # Keyboard and USB gamepad polling
-│   ├── opl.c / .h              # Low-level Yamaha OPL2 hardware register I/O
-│   ├── vgm.c / .h              # ROM streaming VGM background music player
-│   └── sfx.c / .h              # Polyphonic OPL2 FM sound effect player
-└── tools/                      # RP6502 toolchain, emulator & conversion utilities
+├── gtools/                  # Generators (not part of the build)
+│   ├── gen_art.py           # Every graphic: sprites, tiles, maps, palettes, src/gen/assets.h
+│   ├── chop/                # The art: far.py, mid.py, fg.py (layers), sprites.py, logo.py,
+│   │                        #   pal.py (palettes), tilemap.py (cutting and fitting tiles)
+│   ├── art/kit.py           # Lit, outlined pixel-art shapes (from MegaGammaForce)
+│   ├── gen_sfx.py           # OPL2 sound effects
+│   └── generate_music.py    # OPL2 music via Furnace
+├── images/                  # Generated PNG sheets, tile maps and palettes
+├── music/                   # VGM tracks and sfx.bin
+├── src/
+│   ├── main.c               # Main loop and game states
+│   ├── xram.h               # XRAM layout and sprite slots
+│   ├── game.h               # World and flight constants
+│   ├── bg.c                 # The three tile layers, door tiles, palette animation
+│   ├── hud.c                # Status bar and message box
+│   ├── player.c             # Flight, cannon and bombs
+│   ├── compounds.c          # Prisons and their doors
+│   ├── hostages.c           # Hostages: waiting, boarding, running home
+│   ├── enemies.c            # Tanks, jets, mine balloons, the flag
+│   ├── projectiles.c        # Shots, bombs, flak and explosions
+│   ├── fx.c                 # Falling snow
+│   └── sprites.c, input.c, opl.c, vgm.c, music.c, sfx.c
+└── tools/                   # Toolchain, emulator, png2bin.py, playtest.py
 ```
 
 ---

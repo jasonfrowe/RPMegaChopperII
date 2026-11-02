@@ -1,27 +1,21 @@
 RP MEGA CHOPPER II: OPERATION NORTHERN LIGHTS
-Tactical Choplifter-style helicopter rescue mission for the Picocomputer 6502.
+A helicopter rescue game for the Picocomputer 6502.
 
                  Keyboard       Gamepad
-Move / Altitude  Arrows / WASD  D-pad / Left Stick
-Fire / Bomb      Z / J / Space  Button A (or R1)
-Rotate / Turn    X / K / C      Button B (or C / X / L1)
-Start Game       Enter / P      Start / Select
+Fly              Arrows / WASD  D-pad / left stick
+Fire / bomb      Z / J / Space  A (or R1)
+Turn             X / K / C      B (or C / X / L1)
+Start / pause    Enter / P      Start / Select
 
-MISSION OBJECTIVES:
-1. Pilot your SuperChopper across the Arctic frontier.
-2. Rotate to face front (Rotate button) and drop bombs onto reinforced
-   bunker doors marked with targeting crosshairs.
-3. Land gently on the snow (Down arrow until speed is 0) to allow hostages
-   to run toward and board your helicopter.
-4. Your cargo hold carries a maximum of 16 hostages at a time.
-5. Evacuate hostages back to the Canadian Home Base medical outpost at the
-   far left of the sector (near the Maple Leaf flag) and land to unload them.
-6. Rescue all sector hostages to clear the mission!
+HOW TO PLAY
+1. Shoot the red-marked blast door of a prison, or turn to face the
+   screen and drop a bomb on it. Speeding up tips the nose, and the
+   cannon, down.
+2. Land near the hostages. They run to the chopper and climb aboard,
+   16 at most. Don't come down on top of them.
+3. Fly them home to the helipad at the east end, by the flag, and land.
+   They run into the medical station.
+4. The sector is clear when all 64 hostages are home or lost.
 
-COMBAT INTEL:
-- Vulcan Cannon: Fires straight ahead when facing Left or Right.
-- Precision Bombs: Released when facing Front. Drops with chopper momentum.
-- Heavy Tanks: Patrol compounds; turn turrets and fire flak shells upwards.
-- Interceptor Jets: Screaming high-speed flybys at high altitude.
-- Drone Balloons: Drifting mine balloons guarding compound airspace.
-- Don't crush waving hostages with careless landings or friendly fire!
+Tanks fire flak, jets hunt high flyers, mine balloons explode on contact.
+If the chopper goes down, everyone aboard is lost.

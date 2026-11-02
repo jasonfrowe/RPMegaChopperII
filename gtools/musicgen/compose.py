@@ -175,6 +175,29 @@ ROLE_TO_CHANNEL = {"lead": 0, "arp": 1, "bass": 2, "pad": 6, "kick": 3, "snare":
 # sequencer.
 # MegaGammaForce: lead -3, arp +3, hat +12 from RPDemo's mix -- the offsets
 # that always had to be passed as --vol -3,3,0,0,0,0,12 to balance the patches.
+# The patches a track may use: melodic parts take the GM range 00-7F of
+# RPTracker's bank, and the drums take only its custom kit, FD-FF.
+MELODIC_MAX = 0x7F
+DRUM_PATCHES = (0xFD, 0xFE, 0xFF)
+DRUM_ROLES = ("kick", "snare", "hat")
+
+
+def check_patches(song) -> None:
+    """Stop if any note in the song uses a patch outside those ranges."""
+    drum_channels = {ROLE_TO_CHANNEL[r] for r in DRUM_ROLES}
+    bad = set()
+    for (ch, _), rows in song.patterns.items():
+        for cell in rows.values():
+            if cell.ins is None:
+                continue
+            ok = cell.ins in DRUM_PATCHES if ch in drum_channels else 0 <= cell.ins <= MELODIC_MAX
+            if not ok:
+                bad.add((ch, cell.ins))
+    if bad:
+        raise ValueError("patches out of range (channel, patch): "
+                         + ", ".join(f"({c}, {i:02X})" for c, i in sorted(bad)))
+
+
 ROLE_VOLUME = {"lead": 53, "arp": 51, "bass": 58, "pad": 48, "kick": 63, "snare": 54, "hat": 50}
 
 # Small per-note random jitter around each role's base volume (still

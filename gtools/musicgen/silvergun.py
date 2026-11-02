@@ -70,15 +70,16 @@ POOLS = {
     "bass": [42, 43, 58, 70],                        # cello, contrabass, tuba, bassoon
     "pad": [52, 53, 48, 49, 50],                     # choir aahs, voice oohs, strings, synth strings
 }
-KICK = 253        # RPTracker's custom kit, known to sound right on OPL2
-HAT = 255
-TIMPANI = 47
-ORCH_HIT = 55
-SNARE = 254       # RPTracker's custom snare, known to sound right on OPL2
-CRASH = 183
-RIDE = 185
-LOW_TOM = 175
-HIGH_TOM = 184
+# Percussion uses only RPTracker's custom kit, $FD-$FF, which is known to
+# sound right on OPL2. The GM percussion patches above $7F are not used:
+# crashes, rides and toms are played on the kit instead.
+KICK = 0xFD
+SNARE = 0xFE
+HAT = 0xFF
+CRASH = HAT      # a loud hat, pitched low
+RIDE = HAT
+LOW_TOM = KICK   # the kick, pitched up
+HIGH_TOM = SNARE
 
 
 def meter_rows(meter: str) -> Tuple[int, int]:
@@ -129,7 +130,7 @@ def describe(prog: List[Chord]) -> str:
 def pick_instruments(rng: random.Random) -> Dict[str, int]:
     ins = {role: rng.choice(pool) for role, pool in POOLS.items()}
     # Percussion roles: --patch can swap these too.
-    ins["kick"], ins["snare"], ins["hat"] = TIMPANI, SNARE, ORCH_HIT
+    ins["kick"], ins["snare"], ins["hat"] = KICK, SNARE, HAT
     return ins
 
 
@@ -295,7 +296,7 @@ def generate_chunk(rng: random.Random, mood, ins: Dict[str, int], chords: List[C
             pitch = _nearest_chord_tone(pitch, [tones[0]])
 
         troot = tones[0] % 12
-        # "kick" channel: timpani on the downbeat, a bass drum groove when driving.
+        # "kick" channel: a kick on the downbeat, a bass drum groove when driving.
         put("kick", base, _n(2, troot), ins_idx=ins["kick"])
         if drive:
             if six8:
@@ -323,7 +324,7 @@ def generate_chunk(rng: random.Random, mood, ins: Dict[str, int], chords: List[C
                 if rr not in backs and rng.random() < (0.25 if drive else 0.1):
                     put("snare", base + rr, _n(3, 0), vol_add=-18)
 
-        # "hat" channel: crash or orchestra hit on the phrase, tom fills, hats.
+        # "hat" channel: an accent on the phrase, tom fills, hats.
         if bar == 0:
             if rng.random() < 0.6:
                 put("hat", base, _n(4, troot), ins_idx=ins["hat"], vol_add=4)

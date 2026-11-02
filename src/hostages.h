@@ -9,30 +9,33 @@
 typedef enum
 {
     H_INACTIVE,
-    H_RUN_TO_CHOPPER,
-    H_WAVING,
-    H_BOARDING,
-    H_RUN_TO_BASE,
-    H_DEAD
+    H_WAIT,     /* out of the prison, milling about near it */
+    H_TO_CHOPPER,
+    H_TO_BASE,  /* dropped off, running for the hangar */
+    H_CHEER,    /* at the hangar door, about to go in */
 } hostage_state_t;
 
 typedef struct
 {
     hostage_state_t state;
-    int32_t world_x; // Subpixels
-    int16_t y;       // Pixels (ground Y is ~188)
-    int8_t dir;      // -1 = Left, 1 = Right
-    uint8_t anim_frame;
+    int32_t world_x; /* subpixels, left edge of the 16-pixel sprite */
+    int16_t target;  /* world x the hostage is heading for */
+    uint8_t home;    /* compound it came from */
+    uint8_t anim;
     uint8_t timer;
+    bool left;       /* facing left */
 } hostage_t;
 
 extern hostage_t hostages[MAX_ACTIVE_HOSTAGES];
 
 void hostages_init(void);
-bool hostages_spawn(int16_t x, int16_t y);
+/* A hostage steps out of compound `home`'s door at world x. */
+bool hostages_spawn(uint8_t home, int16_t x);
 void hostages_update(void);
 void hostages_render(void);
-void hostages_disembark_all(void);
-bool hostages_check_hit(int16_t hit_x, int16_t hit_y);
+/* A shot at world (x, y): kills a hostage there. */
+bool hostages_check_hit(int16_t x, int16_t y);
+/* The chopper went down: anyone running to it goes back to waiting. */
+void hostages_scatter(void);
 
 #endif /* GAME_HOSTAGES_H */

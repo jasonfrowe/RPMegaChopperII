@@ -2,88 +2,138 @@
 #ifndef ASSETS_H
 #define ASSETS_H
 
-/* Palette Indices */
+#include <stdint.h>
+
+/* Palettes, in XRAM order. */
 #define PAL_CHOPPER 0
-#define PAL_HOSTAGES 1
+#define PAL_HOSTAGE 1
 #define PAL_TANK 2
 #define PAL_JET 3
 #define PAL_BALLOON 4
-#define PAL_EXPLOSION 5
-#define PAL_FLAGS 6
+#define PAL_FX 5
+#define PAL_FLAG 6
 #define PAL_TARGET 7
-#define PAL_BG 8
-#define PAL_FG 9
-#define PAL_HUD 10
-#define PAL_COUNT 11
+#define PAL_SNOW 8
+#define PAL_FAR 9
+#define PAL_MID 10
+#define PAL_FG 11
+#define PAL_HUD 12
+#define PAL_LOGO 13
+#define PAL_COUNT 14
+#define FAR_AURORA_FIRST 8 /* five entries the game rotates */
+#define MID_BEACON_INDEX 11
+#define FG_LAMP_INDEX 15
+#define AURORA_WAVE_N 10
+static const uint16_t aurora_wave[AURORA_WAVE_N] = {
+    0x39E1, 0x52E2, 0x6423, 0x7DA6, 0x96EA, 0xC7F2, 0xA72B, 0x85E6, 0x6C64, 0x5322,
+};
+#define MID_BEACON_ON 0x297C
+#define MID_BEACON_OFF 0x1068
+#define FG_LAMP_ON 0xB77F
+#define FG_LAMP_OFF 0x3BF2
 
-#define CHOPPER_W 32
-#define CHOPPER_H 16
-#define CHOPPER_FRAMES 22
-#define CHOPPER_FRAME_BYTES 256
-#define CHOPPER_TOTAL_BYTES 5632
-
+/* Sprite sheets: frame size, frame count, bytes per frame (4bpp). */
+#define CHOPPER_W 40
+#define CHOPPER_H 20
+#define CHOPPER_FRAMES 12
+#define CHOPPER_FRAME_BYTES 400
 #define HOSTAGES_W 16
 #define HOSTAGES_H 16
-#define HOSTAGES_FRAMES 10
+#define HOSTAGES_FRAMES 7
 #define HOSTAGES_FRAME_BYTES 128
-#define HOSTAGES_TOTAL_BYTES 1280
-
 #define TANK_W 40
-#define TANK_H 16
-#define TANK_FRAMES 6
-#define TANK_FRAME_BYTES 320
-#define TANK_TOTAL_BYTES 1920
-
-#define JET_W 32
+#define TANK_H 20
+#define TANK_FRAMES 4
+#define TANK_FRAME_BYTES 400
+#define JET_W 40
 #define JET_H 16
 #define JET_FRAMES 2
-#define JET_FRAME_BYTES 256
-#define JET_TOTAL_BYTES 512
-
+#define JET_FRAME_BYTES 320
 #define BALLOON_W 16
 #define BALLOON_H 32
 #define BALLOON_FRAMES 3
 #define BALLOON_FRAME_BYTES 256
-#define BALLOON_TOTAL_BYTES 768
-
 #define BOMB_W 8
 #define BOMB_H 8
 #define BOMB_FRAMES 2
 #define BOMB_FRAME_BYTES 32
-#define BOMB_TOTAL_BYTES 64
-
 #define BULLET_W 8
-#define BULLET_H 8
-#define BULLET_FRAMES 1
-#define BULLET_FRAME_BYTES 32
-#define BULLET_TOTAL_BYTES 32
-
+#define BULLET_H 4
+#define BULLET_FRAMES 2
+#define BULLET_FRAME_BYTES 16
 #define EXPLOSION_W 32
-#define EXPLOSION_H 16
-#define EXPLOSION_FRAMES 5
-#define EXPLOSION_FRAME_BYTES 256
-#define EXPLOSION_TOTAL_BYTES 1280
-
+#define EXPLOSION_H 32
+#define EXPLOSION_FRAMES 7
+#define EXPLOSION_FRAME_BYTES 512
 #define SMALLEXPLOSION_W 16
 #define SMALLEXPLOSION_H 16
 #define SMALLEXPLOSION_FRAMES 4
 #define SMALLEXPLOSION_FRAME_BYTES 128
-#define SMALLEXPLOSION_TOTAL_BYTES 512
-
-#define FLAGS_W 16
+#define FLAGS_W 24
 #define FLAGS_H 16
-#define FLAGS_FRAMES 2
-#define FLAGS_FRAME_BYTES 128
-#define FLAGS_TOTAL_BYTES 256
-
+#define FLAGS_FRAMES 4
+#define FLAGS_FRAME_BYTES 192
 #define TARGET_W 16
 #define TARGET_H 16
 #define TARGET_FRAMES 2
 #define TARGET_FRAME_BYTES 128
-#define TARGET_TOTAL_BYTES 256
+#define SNOW_W 4
+#define SNOW_H 4
+#define SNOW_FRAMES 3
+#define SNOW_FRAME_BYTES 8
+#define LOGO_W 256
+#define LOGO_H 24
+#define LOGO_PIECE_W 64
+#define LOGO_PIECES 4
+#define LOGO_PIECE_BYTES 192 /* 1 bit per pixel */
 
-#define WORLD_MAP_COLS 256
-#define WORLD_MAP_ROWS 15
-#define WORLD_MAP_BYTES (WORLD_MAP_COLS * WORLD_MAP_ROWS)
+/* Tile layers. */
+#define FAR_TILE 8
+#define FAR_TILES 224
+#define FAR_TILE_BYTES 32
+#define FAR_MAP_COLS 64
+#define FAR_MAP_ROWS 25
+#define FAR_Y 16
+#define MID_TILE 8
+#define MID_TILES 224
+#define MID_TILE_BYTES 32
+#define MID_MAP_COLS 128
+#define MID_MAP_ROWS 12
+#define MID_Y 120
+#define FG_TILE 16
+#define FG_TILES 192
+#define FG_TILE_BYTES 128
+#define FG_MAP_COLS 256
+#define FG_MAP_ROWS 9
+#define FG_Y 96
+
+/* The world. */
+#define WORLD_W_PX 4096
+#define GROUND_LINE 208 /* screen row of the snow's surface */
+#define NUM_COMPOUNDS 4
+static const uint8_t compound_cols[NUM_COMPOUNDS] = {18, 75, 138, 196};
+#define DOOR_COL 5
+#define DOOR_W 2
+#define DOOR_H 2
+#define HOME_PAD_X0 3744
+#define HOME_PAD_X1 3904
+#define HOME_DOOR_X 4008
+#define FLAG_X 3925
+#define FLAG_Y 118
+
+/* The door's tiles (and the row above it, with the warning lamp),
+ * top row first: as built, and blown open. */
+#define DOOR_TILE_ROWS 3
+static const uint8_t door_intact[DOOR_TILE_ROWS][DOOR_W] = {
+    {33, 34},
+    {69, 70},
+    {112, 113},
+};
+static const uint8_t door_breached[DOOR_TILE_ROWS][DOOR_W] = {
+    {186, 187},
+    {188, 189},
+    {190, 191},
+};
+#define DOOR_TILE_ROW0 4 /* fg map row of the top of that */
 
 #endif /* ASSETS_H */

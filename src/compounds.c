@@ -3,6 +3,7 @@
 #include "compounds.h"
 #include "game.h"
 #include "hostages.h"
+#include "hud.h"
 #include "projectiles.h"
 #include "sfx.h"
 #include "sprites.h"
@@ -10,75 +11,75 @@
 
 compound_t compounds[NUM_COMPOUNDS];
 
-static const uint8_t compound_cols[NUM_COMPOUNDS] = {185, 135, 80, 30};
-
 void compounds_init(void)
 {
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
-        compounds[i].col = compound_cols[i];
-        compounds[i].door_x = (int16_t)(compound_cols[i] + 5) * 16;
-        compounds[i].door_y = 180;
         compounds[i].breached = false;
-        compounds[i].hostages_remaining = 16;
-        compounds[i].spawn_timer = 20;
+        compounds[i].hostages_remaining = HOSTAGES_PER_COMPOUND;
+        compounds[i].spawn_timer = 30;
     }
+    bg_reset_doors();
 }
 
 void compounds_update(void)
 {
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
-        if (compounds[i].breached && compounds[i].hostages_remaining > 0) {
-            if (--compounds[i].spawn_timer == 0) {
-                compounds[i].spawn_timer = 45; /* Spawn a hostage every 45 frames */
-                if (hostages_spawn(compounds[i].door_x + 8, compounds[i].door_y)) {
-                    compounds[i].hostages_remaining--;
-                }
-            }
+        compound_t *c = &compounds[i];
+        if (!c->breached || !c->hostages_remaining)
+            continue;
+        if (c->spawn_timer) {
+            c->spawn_timer--;
+            continue;
+        }
+        if (hostages_spawn(i, DOOR_X(i) + DOOR_W * 8)) {
+            c->hostages_remaining--;
+            c->spawn_timer = 36;
+        } else {
+            c->spawn_timer = 10; /* the door is crowded; try again soon */
         }
     }
 }
 
-bool compounds_check_hit(int16_t hit_x, int16_t hit_y)
+static void breach(uint8_t i)
+{
+    compounds[i].breached = true;
+    compounds[i].spawn_timer = 40;
+    bg_breach_door(i);
+    explosion_spawn(DOOR_X(i) + DOOR_W * 8, DOOR_TOP + 14, true);
+    small_explosion_spawn(DOOR_X(i) + 4, DOOR_TOP + 8);
+    small_explosion_spawn(DOOR_X(i) + 28, DOOR_TOP + 20);
+    sfx_enemy(SFX_BIG_EXPLODE, SFX_PRI_TOP);
+    add_score(500);
+    msg_flash("PRISON BREACHED! LAND TO PICK THEM UP", C_ORANGE, 150);
+}
+
+bool compounds_check_hit(int16_t x, int16_t y, bool bomb)
 {
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
-        if (!compounds[i].breached) {
-            int16_t dx = hit_x - compounds[i].door_x;
-            int16_t dy = hit_y - compounds[i].door_y;
-            /* Target hitbox: 32x24 px */
-            if (dx >= -4 && dx <= 32 && dy >= -8 && dy <= 24) {
-                compounds[i].breached = true;
-                bg_breach_bunker(compounds[i].col);
-                sfx_enemy(SFX_BIG_EXPLODE, SFX_PRI_TOP);
-
-                int16_t scr_x = compounds[i].door_x - FROM_SUB(camera_x);
-                explosion_spawn(scr_x, compounds[i].door_y - 8, true);
-
-                add_score(500);
-                return true;
-            }
+        if (x < BUNKER_X0(i) - 2 || x >= BUNKER_X1(i) + 2 || y < BUNKER_TOP)
+            continue;
+        int16_t dx = x - DOOR_X(i);
+        bool on_door = dx >= -4 && dx < DOOR_W * 16 + 4 && y >= DOOR_TOP - 4;
+        /* A bomb anywhere on the roof over the door also blows it. */
+        bool roof_bomb = bomb && dx >= -16 && dx < DOOR_W * 16 + 16;
+        if (!compounds[i].breached && (on_door || roof_bomb)) {
+            breach(i);
+            return true;
         }
+        /* Bullets fly past the front wall; a bomb bursts on the roof. */
+        return bomb;
     }
     return false;
 }
 
 void compounds_render(void)
 {
-    uint8_t anim = (frame_count >> 3) & 1;
-    uint16_t img_addr = XRAM_IMG_TARGET + (uint16_t)anim * TARGET_FRAME_BYTES;
-
+    uint16_t img = XRAM_IMG_TARGET + ((frame_count >> 3) & 1) * TARGET_FRAME_BYTES;
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
-        uint8_t spr_idx = SPR_TARGET_START + i;
-        if (!compounds[i].breached) {
-            int16_t screen_x = compounds[i].door_x - FROM_SUB(camera_x);
-            int16_t screen_y = compounds[i].door_y - 4;
-            if (screen_x > -16 && screen_x < SCREEN_W) {
-                spr_setup(spr_idx, img_addr, PAL_ADDR(PAL_TARGET), WH(16, 16), OPT4);
-                spr_pos(spr_idx, screen_x, screen_y);
-            } else {
-                spr_hide(spr_idx);
-            }
-        } else {
-            spr_hide(spr_idx);
-        }
+        if (compounds[i].breached)
+            spr_hide(SPR_TARGET_START + i);
+        else
+            spr_place(SPR_TARGET_START + i, img, PAL_TARGET, WH(16, 16), OPT4, screen_x(DOOR_X(i) + 8),
+                      DOOR_TOP + 8);
     }
 }
