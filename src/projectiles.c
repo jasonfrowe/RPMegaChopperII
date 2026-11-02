@@ -16,6 +16,7 @@ typedef struct
     int32_t x, y; /* subpixels */
     int16_t vx, vy;
     uint8_t age;
+    uint8_t kind; /* enemy fire only: EB_* */
 } shot_t;
 
 typedef struct
@@ -65,9 +66,15 @@ void bomb_spawn(int16_t x, int16_t y, int16_t vx)
     spawn(bombs, SPR_BOMB_COUNT, x, y, vx, ONE_PIXEL / 2);
 }
 
-void ebullet_spawn(int16_t x, int16_t y, int16_t vx, int16_t vy)
+void ebullet_spawn(int16_t x, int16_t y, int16_t vx, int16_t vy, uint8_t kind)
 {
-    spawn(ebullets, SPR_EBULLET_COUNT, x, y, vx, vy);
+    for (uint8_t i = 0; i < SPR_EBULLET_COUNT; i++) {
+        if (!ebullets[i].active) {
+            spawn(&ebullets[i], 1, x, y, vx, vy);
+            ebullets[i].kind = kind;
+            return;
+        }
+    }
 }
 
 static void boom(boom_t *pool, uint8_t n, int16_t x, int16_t y)
@@ -110,7 +117,7 @@ static void blast(int16_t x, int16_t y)
     explosion_spawn(x, y, true);
     compounds_check_hit(x, y, true);
     for (int8_t dx = -12; dx <= 12; dx += 12) {
-        tanks_check_hit(x + dx, y);
+        tanks_check_hit(x + dx, y, true);
         hostages_check_hit(x + dx, y);
     }
 }
@@ -135,7 +142,7 @@ void projectiles_update(void)
             small_explosion_spawn(x, GROUND_LINE - 2);
             continue;
         }
-        if (compounds_check_hit(x, y, false) || tanks_check_hit(x, y) || balloons_check_hit(x, y) ||
+        if (compounds_check_hit(x, y, false) || tanks_check_hit(x, y, false) || balloons_check_hit(x, y) ||
             jets_check_hit(x, y) || hostages_check_hit(x, y)) {
             b->active = false;
             small_explosion_spawn(x, y);
@@ -153,7 +160,7 @@ void projectiles_update(void)
         if (y >= GROUND_LINE) {
             b->active = false;
             blast(x, GROUND_LINE - 4);
-        } else if (compounds_check_hit(x, y, true) || tanks_check_hit(x, y)) {
+        } else if (compounds_check_hit(x, y, true) || tanks_check_hit(x, y, true)) {
             b->active = false;
             explosion_spawn(x, y, true);
         }
@@ -165,20 +172,34 @@ void projectiles_update(void)
             continue;
         b->x += b->vx;
         b->y += b->vy;
-        b->vy += 1; /* shells slow as they climb */
-        int16_t x = FROM_SUB(b->x) + 4, y = FROM_SUB(b->y) + 2;
-        if (x < cam - 16 || x > cam + SCREEN_W + 16 || y < HUD_H || y > GROUND_LINE) {
+        if (b->kind == EB_FLAK)
+            b->vy += FLAK_GRAVITY;
+        else if (b->kind == EB_BOMB)
+            b->vy += 2;
+        int16_t x = FROM_SUB(b->x) + 4, y = FROM_SUB(b->y) + (b->kind == EB_BOMB ? 6 : 2);
+        if (x < cam - 32 || x > cam + SCREEN_W + 32 || y < HUD_H - 8) {
             b->active = false;
             continue;
         }
-        if (player_alive() && abs(x - chopper_cx()) < 15 && abs(y - (FROM_SUB(chopper_y) + 11)) < 8) {
+        if (y >= GROUND_LINE) {
             b->active = false;
-            small_explosion_spawn(x, y);
+            small_explosion_spawn(x, GROUND_LINE - 4);
+            if (b->kind == EB_BOMB)
+                sfx_enemy(SFX_EXPLODE, SFX_PRI_DESTROY);
+            continue;
+        }
+        if (player_alive() && abs(x - chopper_cx()) < (b->kind == EB_BOMB ? 14 : 13) &&
+            abs(y - (FROM_SUB(chopper_y) + 11)) < 9) {
+            b->active = false;
+            explosion_spawn(x, y, b->kind == EB_BOMB);
             player_kill();
             continue;
         }
-        if (hostages_check_hit(x, y))
+        /* Flak coming back down can land on the hostages. */
+        if (b->kind == EB_FLAK && b->vy > 0 && hostages_check_hit(x, y)) {
             b->active = false;
+            continue;
+        }
     }
 
     for (uint8_t i = 0; i < SPR_EXPLOSION_COUNT; i++) {
@@ -220,7 +241,10 @@ void projectiles_render(void)
     }
     for (uint8_t i = 0; i < SPR_EBULLET_COUNT; i++) {
         shot_t *b = &ebullets[i];
-        if (b->active)
+        if (b->active && b->kind == EB_BOMB)
+            spr_place(SPR_EBULLET_START + i, XRAM_IMG_BOMB + ((frame_count >> 2) & 1) * BOMB_FRAME_BYTES, PAL_FX,
+                      WH(8, 8), OPT4, FROM_SUB(b->x) - cam, FROM_SUB(b->y));
+        else if (b->active)
             spr_place(SPR_EBULLET_START + i, XRAM_IMG_BULLET + BULLET_FRAME_BYTES, PAL_FX, WH(8, 4), OPT4,
                       FROM_SUB(b->x) - cam, FROM_SUB(b->y));
         else

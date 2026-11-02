@@ -27,8 +27,9 @@ DOOR_COL = 5
 DOOR_W = 2
 DOOR_H = 2
 
-# Home base, at the east end.
-PAD_COL0, PAD_COL1 = 234, 244       # helipad, columns [PAD_COL0, PAD_COL1)
+# Home base, at the east end. All of it fits on the last screen of the
+# world (from column 236), so the hangar is in view while landed on the pad.
+PAD_COL0, PAD_COL1 = 237, 244       # helipad, columns [PAD_COL0, PAD_COL1)
 FLAG_COL = 245
 HANGAR_COL = 247                    # 8 columns wide
 HANGAR_DOOR_X = (HANGAR_COL + 3) * T + 8

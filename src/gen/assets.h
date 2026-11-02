@@ -115,7 +115,7 @@ static const uint8_t compound_cols[NUM_COMPOUNDS] = {18, 75, 138, 196};
 #define DOOR_COL 5
 #define DOOR_W 2
 #define DOOR_H 2
-#define HOME_PAD_X0 3744
+#define HOME_PAD_X0 3792
 #define HOME_PAD_X1 3904
 #define HOME_DOOR_X 4008
 #define FLAG_X 3925
@@ -127,7 +127,7 @@ static const uint8_t compound_cols[NUM_COMPOUNDS] = {18, 75, 138, 196};
 static const uint8_t door_intact[DOOR_TILE_ROWS][DOOR_W] = {
     {33, 34},
     {69, 70},
-    {112, 113},
+    {113, 114},
 };
 static const uint8_t door_breached[DOOR_TILE_ROWS][DOOR_W] = {
     {186, 187},

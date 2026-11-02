@@ -58,11 +58,7 @@ void player_init(void)
     frame = F_SIDE;
     flip = false;
 
-    camera_x = chopper_world_x - TO_SUB(160 - CHOPPER_W / 2);
-    if (camera_x > CAMERA_MAX_X)
-        camera_x = CAMERA_MAX_X;
-    if (camera_x < 0)
-        camera_x = 0;
+    camera_x = CAMERA_MAX_X; /* starting at home, with the hangar in view */
 }
 
 void player_kill(void)
@@ -242,12 +238,18 @@ void player_update(void)
     if ((in_held & IN_FIRE) && fire_cooldown == 0 && !chopper_is_landed && !is_turning)
         fire();
 
-    /* The camera keeps the chopper inside its dead zone. */
+    /* The camera keeps the chopper inside its dead zone. Near home it
+     * slides on east until the hangar is in view, and lets the chopper
+     * sit near the left of the screen. */
+    bool home = FROM_SUB(chopper_world_x) > HOME_VIEW_X;
+    int16_t left = home ? 24 : SCROLL_LEFT_EDGE;
     int16_t sx = FROM_SUB(chopper_world_x - camera_x);
     if (sx > SCROLL_RIGHT_EDGE)
         camera_x += TO_SUB(sx - SCROLL_RIGHT_EDGE);
-    else if (sx < SCROLL_LEFT_EDGE)
-        camera_x -= TO_SUB(SCROLL_LEFT_EDGE - sx);
+    else if (sx < left)
+        camera_x -= TO_SUB(left - sx);
+    else if (home && camera_x < CAMERA_MAX_X && sx > left + 3)
+        camera_x += TO_SUB(3);
     if (camera_x < 0)
         camera_x = 0;
     if (camera_x > CAMERA_MAX_X)

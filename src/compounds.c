@@ -21,6 +21,14 @@ void compounds_init(void)
     bg_reset_doors();
 }
 
+uint8_t compounds_freed(void)
+{
+    uint8_t n = 0;
+    for (uint8_t i = 0; i < NUM_COMPOUNDS; i++)
+        n += HOSTAGES_PER_COMPOUND - compounds[i].hostages_remaining;
+    return n;
+}
+
 void compounds_update(void)
 {
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {

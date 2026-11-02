@@ -111,10 +111,33 @@ BUILTIN = {
         )
         + "run 120\nshot \"{out}/c_clear.png\"\ndump {test_stats} 8\n"
     ),
-    # Fly into the mine balloons until the last chopper is gone.
+    # Real danger, no invulnerability: open the first prison, wait on the
+    # ground while the tanks roll in, then hover high above their flak,
+    # then sit on the ground at the second prison until the bomber comes.
+    "ambush": (
+        "run 30\npress z\nrun 2\nrelease z\nrun 30\n"
+        + place(3300, 172)
+        + "press a\nrun 2\nrelease a\nrun 4\npress z\nrun 30\nrelease z\nrun 20\n"
+        "press s\nrun 30\nrelease s\nrun 400\n"
+        "shot \"{out}/a1_tanks.png\"\ndump {test_stats} 8\n"
+        "press w\nrun 100\nrelease w\n"
+        + "".join("press w\nrun 2\nrelease w\nrun 5\n" for _ in range(60))
+        + "shot \"{out}/a2_high.png\"\ndump {test_stats} 8\n"
+        "poke {chopper_invulnerable} 1\n"
+        + place(2372, 172)
+        + "press a\nrun 2\nrelease a\nrun 4\npress z\nrun 30\nrelease z\n"
+        "press s\nrun 30\nrelease s\n"
+        + "".join(f"run 60\nshot \"{{out}}/a3_ground_{k}.png\"\n" for k in range(8))
+        + "dump {test_stats} 8\n"
+    ),
+    # Free a prison so the enemy turns up, then keep putting the chopper
+    # back among them, unprotected, until the last one is lost.
     "gameover": (
-        "run 30\npress z\nrun 2\nrelease z\nrun 120\n"
-        + "".join(place(x - 12, y - 2) + "run 320\n" for x, y in ((560, 70), (1520, 100), (2480, 60)))
+        "run 30\npress z\nrun 2\nrelease z\nrun 30\npoke {chopper_invulnerable} 1\n"
+        + place(3300, 172)
+        + "press a\nrun 2\nrelease a\nrun 4\npress z\nrun 30\nrelease z\n"
+        "press s\nrun 30\nrelease s\nrun 600\npoke {chopper_invulnerable} 0\n"
+        + "".join(place(3300, 150) + "run 500\n" for _ in range(8))
         + "shot \"{out}/gameover.png\"\ndump {test_stats} 8\n"
     ),
     "soak": (

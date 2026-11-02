@@ -7,8 +7,9 @@
 void enemies_init(void);
 void enemies_update(void);
 void enemies_render(void);
-/* A shot at world (x, y). True if it hit something. */
-bool tanks_check_hit(int16_t x, int16_t y);
+/* A shot or bomb at world (x, y). True if it hit something. Tanks shrug
+ * off cannon fire: only a bomb destroys one. */
+bool tanks_check_hit(int16_t x, int16_t y, bool bomb);
 bool jets_check_hit(int16_t x, int16_t y);
 bool balloons_check_hit(int16_t x, int16_t y);
 

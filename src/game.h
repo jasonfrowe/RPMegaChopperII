@@ -29,7 +29,7 @@
 #define TANK_Y (GROUND_LINE - TANK_H + 2)
 
 /* Home base. The chopper starts and unloads on the helipad. */
-#define CHOPPER_START_X (HOME_PAD_X0 + 72)
+#define CHOPPER_START_X ((HOME_PAD_X0 + HOME_PAD_X1 - CHOPPER_W) / 2)
 #define HOME_PAD_MIN_X (HOME_PAD_X0 - 8)
 #define HOME_PAD_MAX_X (HOME_PAD_X1 - CHOPPER_W + 8)
 
@@ -40,6 +40,18 @@
 #define BUNKER_X0(i) ((int16_t)(compound_cols[i] + 2) * 16)
 #define BUNKER_X1(i) ((int16_t)(compound_cols[i] + 9) * 16)
 #define BUNKER_TOP (GROUND_LINE - 58)
+
+/* Tank flak: the arc tops out around screen row FLAK_CEILING, so flying
+ * above that is safe from the tanks (but the jets come for you). */
+#define FLAK_GRAVITY 2
+#define FLAK_CEILING 80
+
+/* East of this nothing attacks: the home base is safe, as in Choplifter.
+ * Halfway between the last prison and the helipad. */
+#define SAFE_LINE ((DOOR_X(NUM_COMPOUNDS - 1) + HOME_PAD_X0) / 2)
+
+/* Near home the camera slides all the way east, so the hangar is in view. */
+#define HOME_VIEW_X (HOME_PAD_X0 - 140)
 
 /* Camera dead zone, as screen x of the chopper's left edge. */
 #define SCROLL_LEFT_EDGE 110

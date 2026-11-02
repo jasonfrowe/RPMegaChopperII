@@ -179,6 +179,7 @@ static void enter_level_clear(void)
 
     clear_bonus = (uint32_t)saved_count * 200;
     add_score(clear_bonus);
+    hud_update(); /* the last rescue and the bonus, now play has stopped */
     if (score > hiscore) {
         hiscore = score;
         hiscore_save();
@@ -195,6 +196,7 @@ static void enter_gameover(void)
 {
     gstate = GS_GAMEOVER;
     game_timer = 0;
+    hud_update();
     if (score > hiscore) {
         hiscore = score;
         hiscore_save();

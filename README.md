@@ -42,7 +42,12 @@ As pilot of the experimental **SuperChopper**, your mission is to:
 * **The cannon aims with the nose.** Speeding up tips the nose down and the tracers go down with it, which is how you hit doors and tanks; braking tips it up.
 * **Pick them up.** Land near the freed hostages and they run to the chopper and climb aboard, 16 at most. Don't come down on top of them.
 * **Bring them home.** Land on the helipad at the east end, by the flag, and they run into the medical station. Each one saved is 250 points.
-* **Watch out.** Tanks lob flak at you (and roll back in a while after you destroy them), jets come for you if you fly high, and the mine balloons explode on contact. If the chopper goes down, everyone aboard is lost.
+* **Watch out.** The enemy follows Choplifter's rules:
+  * **Tanks** turn up once the rescue is under way, two from each prison's garage, rolling in at the prison you are working. Your cannon just glances off them: **only bombs destroy a tank**. Their flak arcs up and falls back, so it can't reach you up high, but shells coming down can hit hostages.
+  * A **mine balloon** drifts after you once enough hostages are out. Shoot it down.
+  * **Jets** come later still. Sit on the ground too long and one comes to bomb you; stay up high too long and one comes to shoot you.
+  * Nothing attacks near the **home base**.
+  * If the chopper goes down, everyone aboard is lost.
 * **Sector clear** when every hostage is home or lost, with a 200-point bonus for each one saved. An extra chopper every 20,000 points.
 
 ### Radar

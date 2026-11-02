@@ -17,5 +17,8 @@ HOW TO PLAY
    They run into the medical station.
 4. The sector is clear when all 64 hostages are home or lost.
 
-Tanks fire flak, jets hunt high flyers, mine balloons explode on contact.
-If the chopper goes down, everyone aboard is lost.
+Only bombs destroy tanks; their flak can't reach you up high. A mine
+balloon chases you once hostages are out. Later, jets bomb you if you sit
+on the ground too long, and shoot you if you stay up high too long.
+Nothing attacks near the home base. If the chopper goes down, everyone
+aboard is lost.
