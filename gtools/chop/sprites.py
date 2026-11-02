@@ -648,7 +648,8 @@ def target():
 
 
 def snow():
-    """Snowflakes, 4x4: a big soft one, a small bright one."""
+    """Snowflakes, 4x4: a big soft one, a small bright one, a dim one, and a
+    streak blown by the wind (flipped for the other way)."""
     return [grid("""
 .1..
 121.
@@ -664,7 +665,38 @@ def snow():
 .2..
 .1..
 ....
-""", {"1": 1, "2": 2})]
+""", {"1": 1, "2": 2}), grid("""
+....
+..13
+123.
+3...
+""", {"1": 1, "2": 2, "3": 3})]
+
+
+def gust():
+    """16x8 clusters of snow driven sideways by a blizzard (blowing west to
+    east; flipped for the other way). Several streaks to a sprite, so a
+    few sprites fill the air."""
+    key = {"1": 1, "2": 2, "3": 3}
+    return [grid("""
+.........123....
+.123............
+.......12.......
+............123.
+...123..........
+..........12....
+.....123........
+123.............
+""", key), grid("""
+..12............
+..........123...
+....123.........
+.............12.
+.12.............
+........123.....
+..123...........
+...........123..
+""", key)]
 
 
 # name, frame w, frame h, frames(), palette
@@ -681,4 +713,5 @@ SHEETS = [
     ("flags", 24, 16, flags, "FLAG"),
     ("target", 16, 16, target, "TARGET"),
     ("snow", 4, 4, snow, "SNOW"),
+    ("gust", 16, 8, gust, "SNOW"),
 ]

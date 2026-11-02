@@ -185,7 +185,7 @@ typedef struct
 #define SPR_SMALLEXP_START (SPR_EXPLOSION_START + SPR_EXPLOSION_COUNT)
 #define SPR_SMALLEXP_COUNT 8
 #define SPR_SNOW_START (SPR_SMALLEXP_START + SPR_SMALLEXP_COUNT)
-#define SPR_SNOW_COUNT 14
+#define SPR_SNOW_COUNT 24
 #define SPR_TOTAL_COUNT (SPR_SNOW_START + SPR_SNOW_COUNT)
 
 /* Text: the status bar at the top, and a message box over the sky. */
@@ -235,6 +235,7 @@ typedef struct
     uint8_t img_flags[FLAGS_FRAMES][FLAGS_FRAME_BYTES];
     uint8_t img_target[TARGET_FRAMES][TARGET_FRAME_BYTES];
     uint8_t img_snow[SNOW_FRAMES][SNOW_FRAME_BYTES];
+    uint8_t img_gust[GUST_FRAMES][GUST_FRAME_BYTES];
     uint8_t img_logo[LOGO_PIECES][LOGO_PIECE_BYTES];
 
     uint8_t tiles_far[FAR_TILES][FAR_TILE_BYTES];
@@ -274,6 +275,7 @@ _Static_assert((XRAM_OPL & 0xFF) == 0, "The OPL2 registers must start on a page 
 #define XRAM_IMG_FLAGS offsetof(xram_layout_t, img_flags)
 #define XRAM_IMG_TARGET offsetof(xram_layout_t, img_target)
 #define XRAM_IMG_SNOW offsetof(xram_layout_t, img_snow)
+#define XRAM_IMG_GUST offsetof(xram_layout_t, img_gust)
 #define XRAM_IMG_LOGO offsetof(xram_layout_t, img_logo)
 
 #define XRAM_TILES_FAR offsetof(xram_layout_t, tiles_far)

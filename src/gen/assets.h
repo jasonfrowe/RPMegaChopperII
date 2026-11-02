@@ -79,8 +79,12 @@ static const uint16_t aurora_wave[AURORA_WAVE_N] = {
 #define TARGET_FRAME_BYTES 128
 #define SNOW_W 4
 #define SNOW_H 4
-#define SNOW_FRAMES 3
+#define SNOW_FRAMES 4
 #define SNOW_FRAME_BYTES 8
+#define GUST_W 16
+#define GUST_H 8
+#define GUST_FRAMES 2
+#define GUST_FRAME_BYTES 64
 #define LOGO_W 256
 #define LOGO_H 24
 #define LOGO_PIECE_W 64
@@ -89,7 +93,7 @@ static const uint16_t aurora_wave[AURORA_WAVE_N] = {
 
 /* Tile layers. */
 #define FAR_TILE 8
-#define FAR_TILES 224
+#define FAR_TILES 216
 #define FAR_TILE_BYTES 32
 #define FAR_MAP_COLS 64
 #define FAR_MAP_ROWS 25

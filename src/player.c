@@ -6,6 +6,7 @@
 #include "projectiles.h"
 #include "sfx.h"
 #include "sprites.h"
+#include "weather.h"
 #include "xram.h"
 
 int32_t chopper_world_x;
@@ -232,6 +233,8 @@ void player_update(void)
     }
 
     chopper_world_x += chopper_vel_x;
+    if (!chopper_is_landed)
+        chopper_world_x += wind; /* a storm pushes it about */
     if (chopper_world_x < TO_SUB(8)) {
         chopper_world_x = TO_SUB(8);
         chopper_vel_x = 0;

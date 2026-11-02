@@ -16,6 +16,7 @@ A fast-paced tactical helicopter rescue game for the **Picocomputer 6502**, sequ
 Built from the ground up on the modern RP6502 SDK, using all three VGA planes:
 * **Three-depth parallax**: a night sky with a shimmering, palette-cycled **aurora** and a snowy mountain range (plane 0, 8x8 tiles, quarter speed), rolling hills, pine forests, lit cabins and blinking radio masts (plane 1, half speed), and the 4,096-pixel battlefield itself (plane 2, 16x16 tiles).
 * **Mode 5 sprites** drawn with lighting and outlines: a 40x20 rescue chopper that pitches nose-down to accelerate and turns to face the screen to bomb, winter-camo tanks, interceptor jets, tethered mine balloons, running and waving hostages, a rippling maple-leaf flag, fireball explosions and falling snow. Right-facing frames are hardware flips.
+* **Blizzards**: now and then a storm blows in. The mountains and hills fade into a whiteout (the palettes blend toward a haze), driven snow streams across the screen, and gusting wind pushes the chopper about. They are milder in the first sectors.
 * **Title logo** in 1-bit sprites, drawn three times (shadow, rim, face) for a bevel.
 * **Status bar and message box** in Mode 1 text, sharing plane 2 with the ground on their own scanlines: score, rescued and lost counts, spare choppers, a 16-seat cargo gauge and a radar of the whole sector.
 * **Yamaha OPL2 music and sound**: VGM streaming of the Airwolf-style soundtrack on channels 1-7, sound effects on 8-9.
@@ -53,7 +54,8 @@ As pilot of the experimental **SuperChopper**, your mission is to:
   * **Tanks** turn up once 4 hostages are aboard or saved, two at a time from the prison you are nearest, and keep coming: a destroyed tank goes back to its prison's garage. Your cannon can't hurt them. **Only a bomb dropped from high enough** (more than 60 px up) reaches them; dropped lower it bursts on the ground short of them. Their shells arc up and fall back, so they can't reach you up high, but a shell coming down can hit a hostage.
   * A **mine balloon** drifts after you once 16 hostages are out. Shoot it down.
   * **Jets** come once 24 hostages are out. Sit on the ground more than 2 seconds and a bomber may come; stay up high more than 4 seconds and a fighter may.
-  * Nothing attacks near the **home base**.
+  * Nothing attacks near the **home base**, east of the border flag.
+  * **Blizzards** blow in from time to time: it gets hard to see, and the wind pushes you sideways, up to about a third of your top speed in the gusts. They pass in 20 seconds or so.
   * If the chopper goes down, everyone aboard is lost.
 * **Sector clear** when every hostage is home or lost, with a 200-point bonus for each one saved. An extra chopper every 20,000 points.
 
@@ -138,7 +140,8 @@ RPMegaChopperII/
 │   ├── hostages.c           # Hostages: waiting, boarding, running home
 │   ├── enemies.c            # Tanks, jets, mine balloons, the flag
 │   ├── projectiles.c        # Shots, bombs, flak and explosions
-│   ├── fx.c                 # Falling snow
+│   ├── fx.c                 # Falling and blowing snow
+│   ├── weather.c            # Storms: when they come, how strong, the wind
 │   └── sprites.c, input.c, opl.c, vgm.c, music.c, sfx.c
 └── tools/                   # Toolchain, emulator, png2bin.py, playtest.py
 ```

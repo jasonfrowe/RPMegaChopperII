@@ -15,6 +15,7 @@
 #include "projectiles.h"
 #include "sfx.h"
 #include "sprites.h"
+#include "weather.h"
 #include "xram.h"
 
 #define HISCORE_FILE "chopper2.dat"
@@ -38,6 +39,7 @@ volatile struct
 {
     uint8_t state, cargo, saved, lost, lives, breached;
     uint16_t score;
+    uint8_t storm;
 } test_stats;
 
 static uint32_t next_extend = 20000;
@@ -122,6 +124,7 @@ _Static_assert(3 * LOGO_PIECES <= SPR_HOSTAGE_COUNT, "the logo borrows the hosta
 static void enter_title(void)
 {
     gstate = GS_TITLE;
+    weather_init();
     game_timer = 0;
     spr_hide_all();
     music_play("ROM:Title.vgm");
@@ -153,6 +156,7 @@ static void start_level(uint8_t lvl)
     hostages_init();
     enemies_init();
     projectiles_init();
+    weather_init();
 
     hud_clear();
     hud_update();
@@ -211,7 +215,7 @@ static void enter_gameover(void)
 /* Things that keep moving in every state: the sky and the snow. */
 static void ambience(int16_t cam_dx)
 {
-    bg_animate();
+    bg_animate(storm);
     snow_update(cam_dx);
     snow_render();
 }
@@ -221,6 +225,7 @@ int main(void)
     xreg_vga_canvas(CANVAS_320X240);
     input_init();
     bg_init();
+    bg_palettes_init();
     hud_init();
     spr_init();
     music_init();
@@ -274,6 +279,7 @@ int main(void)
                 break;
             }
             game_timer++;
+            weather_update();
             player_update();
             compounds_update();
             hostages_update();
@@ -328,6 +334,7 @@ int main(void)
         test_stats.lost = lost_count;
         test_stats.lives = lives;
         test_stats.score = (uint16_t)score;
+        test_stats.storm = storm;
         {
             uint8_t b = 0;
             for (uint8_t i = 0; i < NUM_COMPOUNDS; i++)

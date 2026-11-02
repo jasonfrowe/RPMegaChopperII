@@ -41,6 +41,7 @@ chopper_sheet(smallexplosion 16 16 XRAM_IMG_SMALLEXPLOSION)
 chopper_sheet(flags 24 16 XRAM_IMG_FLAGS)
 chopper_sheet(target 16 16 XRAM_IMG_TARGET)
 chopper_sheet(snow 4 4 XRAM_IMG_SNOW)
+chopper_sheet(gust 16 8 XRAM_IMG_GUST)
 chopper_sheet(logo 64 24 XRAM_IMG_LOGO 1)
 
 # Mode 2 tile sheets: far sky and hills in 8x8 tiles, the ground in 16x16
@@ -84,4 +85,5 @@ target_sources(RPMegaChopperII PRIVATE
     src/sfx.c
     src/sprites.c
     src/vgm.c
+    src/weather.c
 )

@@ -37,7 +37,7 @@ GEN = ROOT / "src" / "gen"
 
 # Tile budgets. Together with the sprites these fill XRAM; the game's
 # xram.h asserts that the whole layout fits.
-FAR_TILES = 224
+FAR_TILES = 216
 MID_TILES = 224
 FG_TILES = 192
 
