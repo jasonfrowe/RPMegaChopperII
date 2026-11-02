@@ -27,11 +27,12 @@ DOOR_COL = 5
 DOOR_W = 2
 DOOR_H = 2
 
-# Home base, at the east end. All of it fits on the last screen of the
-# world (from column 236), so the hangar is in view while landed on the pad.
-PAD_COL0, PAD_COL1 = 237, 244       # helipad, columns [PAD_COL0, PAD_COL1)
-FLAG_COL = 245
-HANGAR_COL = 247                    # 8 columns wide
+# Home base, at the east end: hangar, flag, then the helipad against the
+# world's edge. All of it is the last screen of the world (from column
+# 236), where the camera stops, so the hangar is in view from the pad.
+HANGAR_COL = 236                    # 8 columns wide
+FLAG_COL = 244
+PAD_COL0, PAD_COL1 = 246, 256       # helipad, columns [PAD_COL0, PAD_COL1)
 HANGAR_DOOR_X = (HANGAR_COL + 3) * T + 8
 
 
@@ -367,8 +368,8 @@ def hangar(c: Canvas, rng):
     c.rect(dx - 2, SURF - 31, dx + 24, SURF - 28, 14)        # awning
     c.snowcap(dx - 2, dx + 24, SURF - 31, thick=2)
     c.dith(dx - 6, SURF, dx + 28, SURF + 3, 6, 15, 0.35)     # light on the snow
-    # Radio mast at the far end.
-    mx = x1 - 6
+    # Radio mast at the west end (the flag stands at the east end).
+    mx = x0 + 6
     for y in range(SURF - 104, wall):
         c.px(mx - 1, y, 1)
         c.px(mx, y, 9 if y % 6 else 10)
@@ -388,7 +389,7 @@ def paint(seed=21):
     helipad(c)
     flagpole(c)
     hangar(c, rng)
-    busy.append((PAD_COL0 * T - 40, W))
+    busy.append((HANGAR_COL * T - 40, W))
 
     def free(x0, x1):
         return all(x1 < a or x0 > b for a, b in busy)
@@ -396,7 +397,7 @@ def paint(seed=21):
     # Scenery: stands of pines, drifts and rocks in the open ground. The
     # first 64 pixels and the area around every building stay clear.
     x = 80
-    while x < PAD_COL0 * T - 80:
+    while x < HANGAR_COL * T - 80:
         r = rng.random()
         if r < 0.32 and free(x - 16, x + 90):
             n = int(rng.integers(2, 6))

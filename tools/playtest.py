@@ -38,6 +38,10 @@ def le(v, n=4):
     return " ".join(f"${(v >> (8 * i)) & 0xFF:02X}" for i in range(n))
 
 
+# World x to land at on the home helipad (see src/gen/assets.h).
+HOME_X = 3988
+
+
 # Put the chopper at world (x, y), hovering, with the camera on it.
 def place(x, y):
     return (f"poke {{debug_warp_y}} {le(y, 2)}\n"
@@ -86,7 +90,7 @@ BUILTIN = {
         "dump {test_stats} 8\n"
         # Home: climb, then put it over the helipad and set it down.
         "press w\nrun 10\nrelease w\n"
-        + place(3800, 150)
+        + place(HOME_X, 150)
         + "press s\nrun 40\nrelease s\nrun 60\n"
         "shot \"{out}/04_unloading.png\"\n"
         "run 360\n"
@@ -104,7 +108,7 @@ BUILTIN = {
             f"shot \"{{out}}/c{k}_loaded.png\"\n"
             "dump {test_stats} 8\n"
             "press w\nrun 10\nrelease w\n"
-            + place(3800, 150)
+            + place(HOME_X, 150)
             + "press s\nrun 40\nrelease s\nrun 500\n"
             "dump {test_stats} 8\n"
             for k, door in enumerate((3216, 2288, 1280, 368))

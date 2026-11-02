@@ -50,12 +50,11 @@
  * Halfway between the last prison and the helipad. */
 #define SAFE_LINE ((DOOR_X(NUM_COMPOUNDS - 1) + HOME_PAD_X0) / 2)
 
-/* Near home the camera slides all the way east, so the hangar is in view. */
-#define HOME_VIEW_X (HOME_PAD_X0 - 140)
-
-/* Camera dead zone, as screen x of the chopper's left edge. */
-#define SCROLL_LEFT_EDGE 110
-#define SCROLL_RIGHT_EDGE (210 - CHOPPER_W)
+/* Camera dead zone, as screen x of the chopper's left edge: the screen
+ * scrolls only once the chopper leaves the 80 pixels around the middle,
+ * and stops at the ends of the world, as in the original game. */
+#define SCROLL_LEFT_EDGE (SCREEN_W / 2 - 40)
+#define SCROLL_RIGHT_EDGE (SCREEN_W / 2 + 40 - CHOPPER_W)
 
 /* Flight */
 #define TURN_DURATION 12
