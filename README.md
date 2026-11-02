@@ -4,6 +4,13 @@
 [![Compiler](https://img.shields.io/badge/Compiler-llvm--mos-green.svg)](https://llvm-mos.org/)
 [![Sound](https://img.shields.io/badge/Audio-Yamaha%20OPL2%20(YM3812)-orange.svg)](https://picocomputer.github.io/)
 
+<!-- rp6502
+preset: llvm-mos/Release
+publish: RPMegaChopperII.zip
+frames: 120
+-->
+[![RPMegaChopperII](https://jasonfrowe.github.io/RPMegaChopperII/RPMegaChopperII/screenshot.png)](https://jasonfrowe.github.io/RPMegaChopperII/RPMegaChopperII/)
+
 A fast-paced tactical helicopter rescue game for the **Picocomputer 6502**, sequel to *RPMegaChopper*.
 
 Built from the ground up on the modern RP6502 SDK, using all three VGA planes:
