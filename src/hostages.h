@@ -21,8 +21,10 @@ typedef struct
     int32_t world_x; /* subpixels, left edge of the 16-pixel sprite */
     int16_t target;  /* world x the hostage is heading for */
     uint8_t home;    /* compound it came from */
+    uint8_t spot;    /* where it waits outside: the order it came out in */
     uint8_t anim;
     uint8_t timer;
+    int8_t move;     /* -1, 0 or 1: how it moved last frame */
     bool left;       /* facing left */
 } hostage_t;
 

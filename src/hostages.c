@@ -1,5 +1,6 @@
 #include <rp6502.h>
 #include <stdlib.h>
+#include "compounds.h"
 #include "game.h"
 #include "hostages.h"
 #include "hud.h"
@@ -11,9 +12,11 @@
 
 hostage_t hostages[MAX_ACTIVE_HOSTAGES];
 
-#define RUN_SPEED 13          /* subpixels per frame */
+#define RUN_SPEED 8           /* subpixels per frame: half a pixel, as in the original */
 #define SIGHT_RANGE 150       /* px: how far away they notice a landed chopper */
 #define BOARD_RANGE 6         /* px from the chopper's middle */
+#define SPACING 12            /* px: never closer than this behind the one ahead */
+#define DOOR_CLEAR 10         /* px: the next one waits until the doorway is this clear */
 #define UNLOAD_EVERY 16       /* frames between hostages getting off */
 
 /* Frames in hostages.png */
@@ -38,18 +41,21 @@ static hostage_t *free_slot(void)
     return 0;
 }
 
-/* Somewhere to stand near the prison, spread out so they don't pile up. */
+/* Where each one waits outside the prison, by the order it came out
+ * (0-15): alternately either side of the door, SPACING apart, the first
+ * ones furthest out. Each newcomer stops short of those already standing,
+ * so nobody has to get past anybody, and the doorway stays clear. */
 static int16_t wait_spot(uint8_t home, uint8_t n)
 {
-    static const int8_t spots[8] = {-40, 52, -24, 36, -56, 68, -8, 20};
-    return DOOR_X(home) + DOOR_W * 8 + spots[n & 7];
+    int16_t off = 20 + SPACING * (7 - (n >> 1));
+    return DOOR_X(home) + DOOR_W * 8 + ((n & 1) ? off : -off);
 }
 
 bool hostages_spawn(uint8_t home, int16_t x)
 {
     /* Wait until the doorway is clear. */
     for (uint8_t i = 0; i < MAX_ACTIVE_HOSTAGES; i++)
-        if (hostages[i].state != H_INACTIVE && abs(FROM_SUB(hostages[i].world_x) + 8 - x) < 10)
+        if (hostages[i].state != H_INACTIVE && abs(FROM_SUB(hostages[i].world_x) + 8 - x) < DOOR_CLEAR)
             return false;
     hostage_t *h = free_slot();
     if (!h)
@@ -57,9 +63,11 @@ bool hostages_spawn(uint8_t home, int16_t x)
     h->state = H_WAIT;
     h->world_x = TO_SUB(x - 8);
     h->home = home;
-    h->target = wait_spot(home, (uint8_t)rng_next());
+    h->spot = HOSTAGES_PER_COMPOUND - compounds[home].hostages_remaining;
+    h->target = wait_spot(home, h->spot);
     h->anim = 0;
     h->timer = 0;
+    h->move = 0;
     h->left = false;
     return true;
 }
@@ -95,20 +103,37 @@ void hostages_scatter(void)
             hostages[i].state = H_WAIT;
 }
 
+/* Is someone close ahead of h, going its way or standing? Then h waits,
+ * so they keep their distance and line up instead of piling together.
+ * One walking straight at h doesn't count, or the two would stop face to
+ * face for good. */
+static bool blocked(hostage_t *h, int8_t dir)
+{
+    for (uint8_t i = 0; i < MAX_ACTIVE_HOSTAGES; i++) {
+        hostage_t *o = &hostages[i];
+        if (o == h || o->state == H_INACTIVE || o->move == -dir)
+            continue;
+        int16_t sep = FROM_SUB(o->world_x - h->world_x);
+        if (dir > 0 ? (sep > 0 && sep < SPACING) : (sep < 0 && sep > -SPACING))
+            return true;
+    }
+    return false;
+}
+
 /* Step toward target; true when there. */
 static bool run_to(hostage_t *h, int16_t target)
 {
     int16_t cx = FROM_SUB(h->world_x) + 8;
     int16_t d = target - cx;
-    if (d > 2) {
-        h->world_x += RUN_SPEED;
-        h->left = false;
-    } else if (d < -2) {
-        h->world_x -= RUN_SPEED;
-        h->left = true;
-    } else {
+    int8_t dir = d > 2 ? 1 : (d < -2 ? -1 : 0);
+    h->move = 0;
+    if (!dir)
         return true;
-    }
+    h->left = dir < 0;
+    if (blocked(h, dir))
+        return false;
+    h->move = dir;
+    h->world_x += dir * RUN_SPEED;
     if (++h->timer >= 5) {
         h->timer = 0;
         h->anim = (h->anim + 1) & 3;
@@ -158,6 +183,7 @@ void hostages_update(void)
 
         switch (h->state) {
         case H_WAIT:
+            /* Only a chopper on the ground, near enough to see, brings them. */
             if (landed && !at_home && cargo_count < MAX_CARGO && abs(hx - ccx) < SIGHT_RANGE) {
                 h->state = H_TO_CHOPPER;
                 if ((rng_next() & 3) == 0)
@@ -166,10 +192,7 @@ void hostages_update(void)
                 /* Wave at the chopper when it flies over, otherwise stand. */
                 h->anim = 0;
                 h->timer++;
-                if (h->timer > 90 && (rng_next() & 63) == 0) {
-                    h->target = wait_spot(h->home, (uint8_t)rng_next());
-                    h->timer = 0;
-                }
+                h->move = 0;
             }
             break;
 
@@ -180,6 +203,7 @@ void hostages_update(void)
             }
             if (abs(hx - ccx) <= BOARD_RANGE) {
                 h->state = H_INACTIVE;
+                h->move = 0;
                 cargo_count++;
                 sfx_player(SFX_HOSTAGE_BOARD, SFX_PRI_EVENT);
                 if (cargo_count == MAX_CARGO)
@@ -222,11 +246,9 @@ void hostages_render(void)
             continue;
         }
         uint8_t f;
-        bool moving = h->state == H_TO_CHOPPER || h->state == H_TO_BASE ||
-                      (h->state == H_WAIT && abs(FROM_SUB(h->world_x) + 8 - h->target) > 2);
         if (h->state == H_CHEER)
             f = HF_WAVE + ((frame_count >> 3) & 1);
-        else if (moving)
+        else if (h->move)
             f = HF_RUN + h->anim;
         else if (player_alive() && abs(FROM_SUB(h->world_x) + 8 - ccx) < 200)
             f = HF_WAVE + (((frame_count >> 3) + i) & 1); /* "over here!" */

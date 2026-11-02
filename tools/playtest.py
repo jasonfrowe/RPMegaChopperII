@@ -82,10 +82,11 @@ BUILTIN = {
         "press z\nrun 30\nrelease z\nrun 20\n"
         "shot \"{out}/01_breach.png\"\n"
         "dump {test_stats} 8\n"
-        "press s\nrun 30\nrelease s\n"
-        "run 240\n"
-        "shot \"{out}/02_boarding.png\"\n"
+        + place(3212, 150)
+        + "press s\nrun 40\nrelease s\n"
         "run 400\n"
+        "shot \"{out}/02_boarding.png\"\n"
+        "run 1000\n"
         "shot \"{out}/03_boarded.png\"\n"
         "dump {test_stats} 8\n"
         # Home: climb, then put it over the helipad and set it down.
@@ -93,7 +94,7 @@ BUILTIN = {
         + place(HOME_X, 150)
         + "press s\nrun 40\nrelease s\nrun 60\n"
         "shot \"{out}/04_unloading.png\"\n"
-        "run 360\n"
+        "run 700\n"
         "shot \"{out}/05_home.png\"\n"
         "dump {test_stats} 8\n"
         "dump {lag_frames} 2\n"
@@ -104,16 +105,17 @@ BUILTIN = {
         + "".join(
             place(door + 84, 172)
             + "press a\nrun 2\nrelease a\nrun 4\npress z\nrun 30\nrelease z\nrun 20\n"
-            "press s\nrun 30\nrelease s\nrun 900\n"
+            + place(door - 4, 150)
+            + "press s\nrun 40\nrelease s\nrun 1500\n"
             f"shot \"{{out}}/c{k}_loaded.png\"\n"
             "dump {test_stats} 8\n"
             "press w\nrun 10\nrelease w\n"
             + place(HOME_X, 150)
-            + "press s\nrun 40\nrelease s\nrun 500\n"
+            + "press s\nrun 40\nrelease s\nrun 800\n"
             "dump {test_stats} 8\n"
             for k, door in enumerate((3216, 2288, 1280, 368))
         )
-        + "run 120\nshot \"{out}/c_clear.png\"\ndump {test_stats} 8\n"
+        + "run 400\nshot \"{out}/c_clear.png\"\ndump {test_stats} 8\n"
     ),
     # Real danger, no invulnerability: open the first prison, wait on the
     # ground while the tanks roll in, then hover high above their flak,
