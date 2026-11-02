@@ -107,33 +107,33 @@ static const uint16_t aurora_wave[AURORA_WAVE_N] = {
 #define FG_TILE 16
 #define FG_TILES 192
 #define FG_TILE_BYTES 128
-#define FG_MAP_COLS 256
+#define FG_MAP_COLS 288
 #define FG_MAP_ROWS 9
 #define FG_Y 96
 
 /* The world. */
-#define WORLD_W_PX 4096
+#define WORLD_W_PX 4608
 #define GROUND_LINE 208 /* screen row of the snow's surface */
 #define NUM_COMPOUNDS 4
 static const uint8_t compound_cols[NUM_COMPOUNDS] = {18, 75, 138, 196};
 #define DOOR_COL 5
 #define DOOR_W 2
 #define DOOR_H 2
-#define HOME_PAD_X0 3904
-#define HOME_PAD_X1 3984
-#define HOME_DOOR_X 3880
-#define FLAG_X 4021
+#define HOME_PAD_X0 4416
+#define HOME_PAD_X1 4496
+#define HOME_DOOR_X 4392
+#define FLAG_X 4533
 #define FLAG_Y 118
-#define BORDER_X 3556 /* the border flag; the enemy stays west of it */
-#define BORDER_FLAG_X 3557
+#define BORDER_X 3812 /* the border flag; the enemy stays west of it */
+#define BORDER_FLAG_X 3813
 
 /* The door's tiles (and the row above it, with the warning lamp),
  * top row first: as built, and blown open. */
 #define DOOR_TILE_ROWS 3
 static const uint8_t door_intact[DOOR_TILE_ROWS][DOOR_W] = {
-    {31, 32},
-    {66, 67},
-    {108, 109},
+    {32, 33},
+    {68, 69},
+    {113, 114},
 };
 static const uint8_t door_breached[DOOR_TILE_ROWS][DOOR_W] = {
     {186, 187},

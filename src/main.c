@@ -40,6 +40,7 @@ volatile struct
     uint8_t state, cargo, saved, lost, lives, breached;
     uint16_t score;
     uint8_t storm;
+    uint8_t inside; /* hostages still in the prisons */
 } test_stats;
 
 static uint32_t next_extend = 20000;
@@ -335,6 +336,7 @@ int main(void)
         test_stats.lives = lives;
         test_stats.score = (uint16_t)score;
         test_stats.storm = storm;
+        test_stats.inside = TOTAL_HOSTAGES - compounds_freed();
         {
             uint8_t b = 0;
             for (uint8_t i = 0; i < NUM_COMPOUNDS; i++)

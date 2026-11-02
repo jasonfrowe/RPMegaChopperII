@@ -14,7 +14,7 @@ frames: 120
 A fast-paced tactical helicopter rescue game for the **Picocomputer 6502**, sequel to *RPMegaChopper*.
 
 Built from the ground up on the modern RP6502 SDK, using all three VGA planes:
-* **Three-depth parallax**: a night sky with a shimmering, palette-cycled **aurora** and a snowy mountain range (plane 0, 8x8 tiles, quarter speed), rolling hills, pine forests, lit cabins and blinking radio masts (plane 1, half speed), and the 4,096-pixel battlefield itself (plane 2, 16x16 tiles).
+* **Three-depth parallax**: a night sky with a shimmering, palette-cycled **aurora** and a snowy mountain range (plane 0, 8x8 tiles, quarter speed), rolling hills, pine forests, lit cabins and blinking radio masts (plane 1, half speed), and the 4,608-pixel battlefield itself (plane 2, 16x16 tiles).
 * **Mode 5 sprites** drawn with lighting and outlines: a 40x20 rescue chopper that pitches nose-down to accelerate and turns to face the screen to bomb, winter-camo tanks, interceptor jets, tethered mine balloons, running and waving hostages, a rippling maple-leaf flag, fireball explosions and falling snow. Right-facing frames are hardware flips.
 * **Blizzards**: now and then a storm blows in. The mountains and hills fade into a whiteout (the palettes blend toward a haze), driven snow streams across the screen, and gusting wind pushes the chopper about. They are milder in the first sectors.
 * **Title logo** in 1-bit sprites, drawn three times (shadow, rim, face) for a bevel.
@@ -28,7 +28,7 @@ Built from the ground up on the modern RP6502 SDK, using all three VGA planes:
 Deep in the frozen Northern Arctic frontier, hostile forces have captured allied researchers and soldiers across heavily fortified compound bunkers. 
 
 As pilot of the experimental **SuperChopper**, your mission is to:
-1. Infiltrate enemy territory across a 4,096-pixel hostile corridor.
+1. Infiltrate enemy territory across a 4,608-pixel hostile corridor.
 2. Bomb the reinforced blast doors of enemy bunkers to free hostages trapped inside.
 3. Land safely on the snowbanks so freed hostages can reach and board your transport hold.
 4. Ferry hostages back to the Canadian Home Base medical station at the eastern end of the sector.

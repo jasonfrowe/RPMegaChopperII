@@ -12,7 +12,7 @@ import numpy as np
 from .paint import bayer, fbm, wave
 
 T = 16
-W = 4096
+W = 4608
 FG_Y = 96
 H = 144
 GROUND_LINE = 208
@@ -27,17 +27,17 @@ DOOR_COL = 5
 DOOR_W = 2
 DOOR_H = 2
 
-# Home base, at the east end: hangar, flag, then the helipad against the
-# world's edge. All of it is the last screen of the world (from column
-# 236), where the camera stops, so the hangar is in view from the pad.
-HANGAR_COL = 236                    # 8 columns wide, its door at the east end
-PAD_COL0, PAD_COL1 = 244, 249       # helipad, columns [PAD_COL0, PAD_COL1), by the door
-FLAG_COL = 251
+# Home base, at the east end: the hangar, its door by a short helipad, and
+# the flag. All of it is on the last screen of the world (from column 268),
+# where the camera stops, so the hangar is in view from the pad.
+HANGAR_COL = 268                    # 8 columns wide, its door at the east end
+PAD_COL0, PAD_COL1 = 276, 281       # helipad, columns [PAD_COL0, PAD_COL1), by the door
+FLAG_COL = 283
 HANGAR_DOOR_X = (HANGAR_COL + 6) * T + 8
 
 # The border: a checkpoint with a flag, halfway between the last prison and
 # home. East of it the enemy doesn't go and doesn't attack.
-BORDER_COL = 222
+BORDER_COL = 238
 BORDER_X = BORDER_COL * T + 4       # the flagpole
 
 

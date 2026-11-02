@@ -12,7 +12,7 @@ Built-in scripts (pass the name instead of a file):
            printing dropped frames
 
 test_stats (dumped by the scripts) is: state, cargo, saved, lost, lives,
-breached prisons (a bit each), score (2 bytes), storm strength (0-16). Dump that rather than the
+breached prisons (a bit each), score (2 bytes), storm strength (0-16), hostages still in the prisons. Dump that rather than the
 game's own variables, which can be stale in memory.
 
 Usage:
@@ -40,7 +40,7 @@ def le(v, n=4):
 
 
 # World x to land at on the home helipad (see src/gen/assets.h).
-HOME_X = 3924
+HOME_X = 4436
 
 
 # Put the chopper at world (x, y), hovering, with the camera on it.
@@ -72,7 +72,7 @@ BUILTIN = {
         "run 60\n"
         "shot \"{out}/06_tundra.png\"\n"
         "dump {lag_frames} 2\n"
-        "dump {test_stats} 9\n"
+        "dump {test_stats} 10\n"
     ),
     # Shoot open the nearest prison, land, load up, fly home and unload.
     "rescue": (
@@ -82,14 +82,14 @@ BUILTIN = {
         + "press a\nrun 2\nrelease a\nrun 4\n"
         "press z\nrun 30\nrelease z\nrun 20\n"
         "shot \"{out}/01_breach.png\"\n"
-        "dump {test_stats} 9\n"
+        "dump {test_stats} 10\n"
         + place(3212, 150)
         + "press s\nrun 40\nrelease s\n"
         "run 400\n"
         "shot \"{out}/02_boarding.png\"\n"
         "run 1000\n"
         "shot \"{out}/03_boarded.png\"\n"
-        "dump {test_stats} 9\n"
+        "dump {test_stats} 10\n"
         # Home: climb, then put it over the helipad and set it down.
         "press w\nrun 10\nrelease w\n"
         + place(HOME_X, 150)
@@ -97,7 +97,7 @@ BUILTIN = {
         "shot \"{out}/04_unloading.png\"\n"
         "run 700\n"
         "shot \"{out}/05_home.png\"\n"
-        "dump {test_stats} 9\n"
+        "dump {test_stats} 10\n"
         "dump {lag_frames} 2\n"
     ),
     # Empty every prison in turn and fly everyone home: the sector clears.
@@ -109,14 +109,14 @@ BUILTIN = {
             + place(door - 4, 150)
             + "press s\nrun 40\nrelease s\nrun 1500\n"
             f"shot \"{{out}}/c{k}_loaded.png\"\n"
-            "dump {test_stats} 9\n"
+            "dump {test_stats} 10\n"
             "press w\nrun 10\nrelease w\n"
             + place(HOME_X, 150)
             + "press s\nrun 40\nrelease s\nrun 800\n"
-            "dump {test_stats} 9\n"
+            "dump {test_stats} 10\n"
             for k, door in enumerate((3216, 2288, 1280, 368))
         )
-        + "run 400\nshot \"{out}/c_clear.png\"\ndump {test_stats} 9\n"
+        + "run 400\nshot \"{out}/c_clear.png\"\ndump {test_stats} 10\n"
     ),
     # Real danger, no invulnerability: open the first prison, wait on the
     # ground while the tanks roll in, then hover high above their flak,
@@ -126,16 +126,16 @@ BUILTIN = {
         + place(3300, 172)
         + "press a\nrun 2\nrelease a\nrun 4\npress z\nrun 30\nrelease z\nrun 20\n"
         "press s\nrun 30\nrelease s\nrun 400\n"
-        "shot \"{out}/a1_tanks.png\"\ndump {test_stats} 9\n"
+        "shot \"{out}/a1_tanks.png\"\ndump {test_stats} 10\n"
         "press w\nrun 100\nrelease w\n"
         + "".join("press w\nrun 2\nrelease w\nrun 5\n" for _ in range(60))
-        + "shot \"{out}/a2_high.png\"\ndump {test_stats} 9\n"
+        + "shot \"{out}/a2_high.png\"\ndump {test_stats} 10\n"
         "poke {chopper_invulnerable} 1\n"
         + place(2372, 172)
         + "press a\nrun 2\nrelease a\nrun 4\npress z\nrun 30\nrelease z\n"
         "press s\nrun 30\nrelease s\n"
         + "".join(f"run 60\nshot \"{{out}}/a3_ground_{k}.png\"\n" for k in range(8))
-        + "dump {test_stats} 9\n"
+        + "dump {test_stats} 10\n"
     ),
     # Free a prison so the enemy turns up, then keep putting the chopper
     # back among them, unprotected, until the last one is lost.
@@ -145,7 +145,7 @@ BUILTIN = {
         + "press a\nrun 2\nrelease a\nrun 4\npress z\nrun 30\nrelease z\n"
         "press s\nrun 30\nrelease s\nrun 600\npoke {chopper_invulnerable} 0\n"
         + "".join(place(3300, 150) + "run 500\n" for _ in range(8))
-        + "shot \"{out}/gameover.png\"\ndump {test_stats} 9\n"
+        + "shot \"{out}/gameover.png\"\ndump {test_stats} 10\n"
     ),
     "soak": (
         "run 30\npress z\nrun 2\nrelease z\npoke {chopper_invulnerable} 1\npoke {debug_storm} 16\n"

@@ -198,7 +198,9 @@ void hostages_update(void)
 
         switch (h->state) {
         case H_OUT:
-            if (low && abs(hx - ccx) < SIGHT_RANGE) {
+            /* They see a low chopper near them, or near their own prison:
+             * the ones waiting furthest out come too. */
+            if (low && (abs(hx - ccx) < SIGHT_RANGE || abs(DOOR_X(h->home) + DOOR_W * 8 - ccx) < SIGHT_RANGE)) {
                 /* Run for the chopper; climb aboard once it is down. */
                 if (walk(h, ccx) && landed && abs(hx - ccx) < BOARD_RANGE && cargo_count < MAX_CARGO) {
                     h->state = H_INACTIVE;

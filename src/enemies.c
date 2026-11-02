@@ -223,8 +223,8 @@ static void update_tanks(int16_t ccx, bool safe)
             int16_t x = (!left ? base_x(b) - TANK_SPAWN_DIST : base_x(b) + TANK_SPAWN_DIST) - TANK_W / 2;
             if (x < 0)
                 x = 0;
-            if (x > WORLD_W_PX - TANK_W)
-                x = WORLD_W_PX - TANK_W;
+            if (x > SAFE_LINE - TANK_W - 8)
+                x = SAFE_LINE - TANK_W - 8; /* never on the home side of the border */
             if (offscreen(x, TANK_W, TANK_OFFSCREEN)) {
                 slot->active = true;
                 slot->base = b;

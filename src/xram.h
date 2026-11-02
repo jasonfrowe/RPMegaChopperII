@@ -195,7 +195,9 @@ typedef struct
 #define MSG_ROWS 6
 #define MSG_Y 40
 
-#define SFX_DATA_MAX 3072
+/* Room for the sound effects (SFX_BLOB_SIZE, from gtools/gen_sfx.py, is
+ * 2772); sfx.c checks they fit. */
+#define SFX_DATA_MAX 2784
 
 typedef struct
 {

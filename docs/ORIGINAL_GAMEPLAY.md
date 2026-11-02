@@ -176,6 +176,12 @@ down, of its middle), it stops, drops (starting at 1 px/frame, gravity
   a prison that has just become the nearest waits 360 frames before it
   sends any. The balloon waits for 24 hostages out (not 16) and appears
   128 px off screen (not 64).
+- **Seeing the chopper:** a waiting hostage also comes when the chopper is
+  low within 150 px of its own prison's door, not only of itself, so the
+  ones waiting furthest out aren't left behind.
+- **A longer world:** 4,608 px rather than 4,096, the extra between the
+  last prison and home, with the border further east; tanks never roll
+  out east of the border.
 - **The balloon at the border** backs off 80 px west before coming back,
   so it patrols along the line instead of hanging on it.
 - **Jets** wait until the third prison has been opened (not 24 hostages
