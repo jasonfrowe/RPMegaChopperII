@@ -115,7 +115,7 @@ static const uint16_t aurora_wave[AURORA_WAVE_N] = {
 #define WORLD_W_PX 4608
 #define GROUND_LINE 208 /* screen row of the snow's surface */
 #define NUM_COMPOUNDS 4
-static const uint8_t compound_cols[NUM_COMPOUNDS] = {18, 75, 138, 196};
+static const uint8_t compound_cols[NUM_COMPOUNDS] = {16, 72, 136, 192};
 #define DOOR_COL 5
 #define DOOR_W 2
 #define DOOR_H 2
@@ -131,9 +131,9 @@ static const uint8_t compound_cols[NUM_COMPOUNDS] = {18, 75, 138, 196};
  * top row first: as built, and blown open. */
 #define DOOR_TILE_ROWS 3
 static const uint8_t door_intact[DOOR_TILE_ROWS][DOOR_W] = {
-    {32, 33},
-    {68, 69},
-    {113, 114},
+    {37, 38},
+    {67, 68},
+    {103, 104},
 };
 static const uint8_t door_breached[DOOR_TILE_ROWS][DOOR_W] = {
     {186, 187},

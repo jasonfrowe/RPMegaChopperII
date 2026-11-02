@@ -84,10 +84,11 @@ void hud_init(void)
 
 /*
  * Row 0: SCORE 000000  SAVED 00/64  LOST 00  ^^^
- * Row 1: CARGO ################  [radar.........]
+ * Row 1: CARGO ################ [radar..........]
  */
-#define RADAR_COL 23
-#define RADAR_N 17
+#define RADAR_COL 23 /* '[' just before, ']' just after: columns 22-39 */
+#define RADAR_N 16
+_Static_assert(RADAR_COL + RADAR_N < HUD_COLS, "the radar's ']' must fit on the status bar");
 
 void hud_update(void)
 {
@@ -123,6 +124,8 @@ void hud_update(void)
         if (hostages[i].state == H_INACTIVE)
             continue;
         uint8_t cell = (uint8_t)((uint16_t)(FROM_SUB(hostages[i].world_x) >> 4) * RADAR_N / (WORLD_W_PX >> 4));
+        if (cell >= RADAR_N)
+            cell = RADAR_N - 1;
         put(&hud_grid[1][RADAR_COL + cell], '*', C_ORANGE, C_PANEL);
     }
     put(&hud_grid[1][RADAR_COL + RADAR_N - 1], G_HOUSE, C_LGREEN, C_PANEL);

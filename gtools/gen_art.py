@@ -182,7 +182,15 @@ def main():
     col0 = fg.COMPOUND_COLS[0] + fg.DOOR_COL
     row0 = fg.SURF // 16 - fg.DOOR_H - 1
     door_now = fg_img[row0 * 16:fg.SURF, col0 * 16:(col0 + fg.DOOR_W) * 16]
-    gt, gmap, look = tilemap.build(fg_img, 16, pal.FG, FG_TILES, extra=[door_img, door_now])
+    # The landmarks are kept exact too: a prison, the border checkpoint and
+    # the home base. Any merging needed to fit the budget comes out of the
+    # snow and the trees, where it shows least.
+    def cols(c0, c1):
+        return fg_img[:, c0 * 16:c1 * 16]
+    landmarks = [cols(fg.COMPOUND_COLS[0], fg.COMPOUND_COLS[0] + fg.COMPOUND_W),
+                 cols(fg.BORDER_COL - 4, fg.BORDER_COL + 6),
+                 cols(fg.HANGAR_COL - 1, fg.W // 16)]
+    gt, gmap, look = tilemap.build(fg_img, 16, pal.FG, FG_TILES, extra=[door_img, door_now] + landmarks)
     intact = [[int(gmap[row0 + r, col0 + c]) for c in range(fg.DOOR_W)] for r in range(fg.DOOR_H + 1)]
     breached = [[look(door_img[r * 16:(r + 1) * 16, c * 16:(c + 1) * 16]) for c in range(fg.DOOR_W)]
                 for r in range(fg.DOOR_H + 1)]

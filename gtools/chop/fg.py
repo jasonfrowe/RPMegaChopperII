@@ -21,7 +21,7 @@ SURF = GROUND_LINE - FG_Y           # image row of the snow's surface
 # Compounds: the left column of each, west to east. Hostages come out of
 # the door, DOOR_COL tiles in, DOOR_W tiles wide and DOOR_H tall, standing
 # on the ground.
-COMPOUND_COLS = [18, 75, 138, 196]
+COMPOUND_COLS = [16, 72, 136, 192]  # all at the same place in the ground's 8-tile pattern, so they share tiles
 COMPOUND_W = 12
 DOOR_COL = 5
 DOOR_W = 2
@@ -408,6 +408,22 @@ def hangar(c: Canvas, rng):
     c.px(mx, SURF - 105, 15)
 
 
+SLOT = 128  # the ground pattern's period
+# Stands of pines: (offset in the slot, height) for each tree.
+STANDS = [
+    [(24, 52), (40, 66), (58, 44)],
+    [(40, 62), (58, 40)],
+    [(56, 68)],
+]
+
+
+def prop(c: Canvas, x0, k):
+    """Pine stand k at slot x0, drawn identically wherever it goes."""
+    rng = np.random.default_rng(100 + k)
+    for dx, h in STANDS[k]:
+        pine(c, x0 + dx, h, rng)
+
+
 def paint(seed=21):
     rng = np.random.default_rng(seed)
     c = Canvas(W, H)
@@ -426,25 +442,20 @@ def paint(seed=21):
     def free(x0, x1):
         return all(x1 < a or x0 > b for a, b in busy)
 
-    # Scenery: stands of pines, drifts and rocks in the open ground. The
-    # first 64 pixels and the area around every building stay clear.
-    x = 80
-    while x < HANGAR_COL * T - 80:
+    # Scenery in the open ground: one of a few fixed props per 128-pixel
+    # slot, the ground's own period, each always drawn the same way at the
+    # same place in its slot. So every copy of a prop sits on the same
+    # ground and shares its tiles, and the tile budget goes on the buildings.
+    for x0 in range(64, HANGAR_COL * T - 160, SLOT):
+        if not free(x0 - 8, x0 + SLOT + 8):
+            continue
         r = rng.random()
-        if r < 0.32 and free(x - 16, x + 90):
-            n = int(rng.integers(2, 6))
-            for k in range(n):
-                pine(c, x + k * int(rng.integers(12, 20)), int(rng.integers(34, 70)), rng)
-            busy.append((x - 16, x + n * 20 + 16))
-            x += n * 20 + int(rng.integers(40, 120))
-        elif r < 0.5 and free(x, x + 30):
-            drift(c, x, int(rng.integers(20, 40)), int(rng.integers(3, 6)))
-            x += int(rng.integers(60, 140))
-        elif r < 0.65 and free(x, x + 24):
-            rock(c, x, int(rng.integers(10, 22)), int(rng.integers(5, 10)), rng)
-            x += int(rng.integers(60, 140))
-        else:
-            x += int(rng.integers(40, 100))
+        if r < 0.45:
+            prop(c, x0, int(rng.integers(0, len(STANDS))))
+        elif r < 0.6:
+            drift(c, x0 + 40, 34, 4)
+        elif r < 0.72:
+            rock(c, x0 + 56, 16, 7, np.random.default_rng(3))
 
     # The breached door, painted on a copy of the first compound.
     b = Canvas(W, H)

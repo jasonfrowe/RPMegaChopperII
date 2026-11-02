@@ -39,8 +39,18 @@ def le(v, n=4):
     return " ".join(f"${(v >> (8 * i)) & 0xFF:02X}" for i in range(n))
 
 
-# World x to land at on the home helipad (see src/gen/assets.h).
-HOME_X = 4436
+def _assets():
+    """Where things are, from the generated src/gen/assets.h."""
+    text = (ROOT / "src" / "gen" / "assets.h").read_text()
+    defs = {k: int(v) for k, v in re.findall(r"#define (\w+) (-?\d+)\b", text)}
+    cols = [int(c) for c in re.search(r"compound_cols\[NUM_COMPOUNDS\] = \{([^}]*)\}", text).group(1).split(",")]
+    doors = [(c + defs["DOOR_COL"]) * 16 for c in cols]  # each door's left edge
+    home = (defs["HOME_PAD_X0"] + defs["HOME_PAD_X1"] - 40) // 2  # chopper x, on the pad
+    return doors, home
+
+
+DOORS, HOME_X = _assets()  # west to east; the chopper lands at HOME_X at home
+EAST_DOOR = DOORS[-1]
 
 
 # Put the chopper at world (x, y), hovering, with the camera on it.
@@ -78,12 +88,12 @@ BUILTIN = {
     "rescue": (
         "run 30\npress z\nrun 2\nrelease z\nrun 30\n"
         "poke {chopper_invulnerable} 1\n"
-        + place(3300, 172)
+        + place(EAST_DOOR + 84, 172)
         + "press a\nrun 2\nrelease a\nrun 4\n"
         "press z\nrun 30\nrelease z\nrun 20\n"
         "shot \"{out}/01_breach.png\"\n"
         "dump {test_stats} 10\n"
-        + place(3212, 150)
+        + place(EAST_DOOR - 4, 150)
         + "press s\nrun 40\nrelease s\n"
         "run 400\n"
         "shot \"{out}/02_boarding.png\"\n"
@@ -114,7 +124,7 @@ BUILTIN = {
             + place(HOME_X, 150)
             + "press s\nrun 40\nrelease s\nrun 800\n"
             "dump {test_stats} 10\n"
-            for k, door in enumerate((3216, 2288, 1280, 368))
+            for k, door in enumerate(reversed(DOORS))
         )
         + "run 400\nshot \"{out}/c_clear.png\"\ndump {test_stats} 10\n"
     ),
@@ -123,7 +133,7 @@ BUILTIN = {
     # then sit on the ground at the second prison until the bomber comes.
     "ambush": (
         "run 30\npress z\nrun 2\nrelease z\nrun 30\n"
-        + place(3300, 172)
+        + place(EAST_DOOR + 84, 172)
         + "press a\nrun 2\nrelease a\nrun 4\npress z\nrun 30\nrelease z\nrun 20\n"
         "press s\nrun 30\nrelease s\nrun 400\n"
         "shot \"{out}/a1_tanks.png\"\ndump {test_stats} 10\n"
@@ -141,10 +151,10 @@ BUILTIN = {
     # back among them, unprotected, until the last one is lost.
     "gameover": (
         "run 30\npress z\nrun 2\nrelease z\nrun 30\npoke {chopper_invulnerable} 1\n"
-        + place(3300, 172)
+        + place(EAST_DOOR + 84, 172)
         + "press a\nrun 2\nrelease a\nrun 4\npress z\nrun 30\nrelease z\n"
         "press s\nrun 30\nrelease s\nrun 600\npoke {chopper_invulnerable} 0\n"
-        + "".join(place(3300, 150) + "run 500\n" for _ in range(8))
+        + "".join(place(EAST_DOOR + 84, 150) + "run 500\n" for _ in range(8))
         + "shot \"{out}/gameover.png\"\ndump {test_stats} 10\n"
     ),
     "soak": (
