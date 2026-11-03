@@ -113,7 +113,7 @@ void hiscore_save(void)
 /* The logo, on the hostage sprites (there are none on the title): for each
  * 64-pixel piece a shadow, a light rim and the face, back to front. */
 #define LOGO_X ((SCREEN_W - LOGO_W) / 2)
-#define LOGO_Y 42
+#define LOGO_Y 17 /* just under the status bar, over the message box's empty top row */
 
 static void logo_show(void)
 {
@@ -131,10 +131,22 @@ static void logo_show(void)
 
 _Static_assert(3 * LOGO_PIECES <= SPR_HOSTAGE_COUNT, "the logo borrows the hostage sprites");
 
+/* The title's level select: left and right choose where a game starts,
+ * and the title flies over that level. */
+static void title_level(void)
+{
+    char t[] = "<  SECTOR 1  >";
+    t[10] = (char)('1' + first_level);
+    level_enter(1 + first_level);
+    enemies_init(); /* its enemies, for the flags and turrets on view */
+    logo_show(); /* loading a level hides every sprite */
+    msg_center(3, t, C_CYAN);
+    msg_center(4, level->name, C_WHITE);
+}
+
 static void enter_title(void)
 {
     gstate = GS_TITLE;
-    level_enter(1); /* the title flies over the first level */
     weather_init();
     game_timer = 0;
     spr_hide_all();
@@ -148,8 +160,10 @@ static void enter_title(void)
     hud_num(23, 0, hiscore, 6, C_WHITE);
     hud_text(1, 1, "ARROWS FLY   Z FIRE/BOMB   X TURN", C_GREY);
     msg_clear();
-    logo_show();
-    msg_band(4, "OPERATION  NORTHERN  LIGHTS", C_AURORA);
+    msg_band(1, "OPERATION  NORTHERN  LIGHTS", C_AURORA);
+    if (first_level >= LEVEL_BANKS)
+        first_level = 0;
+    title_level();
 }
 
 static void start_level(uint8_t lvl)
@@ -281,8 +295,13 @@ int main(void)
             msg_center(5, (game_timer & 32) ? "PRESS FIRE TO START" : "", C_LGREEN);
             enemies_render();
             compounds_render();
-            if (in_pressed & (IN_FIRE | IN_START))
+            if (in_pressed & (IN_LEFT | IN_RIGHT)) {
+                first_level = (uint8_t)((first_level + (in_pressed & IN_LEFT ? LEVEL_BANKS - 1 : 1)) % LEVEL_BANKS);
+                title_level();
+                sfx_player(SFX_HOSTAGE_BOARD, SFX_PRI_EVENT);
+            } else if (in_pressed & (IN_FIRE | IN_START)) {
                 enter_play();
+            }
             break;
 
         case GS_PLAY:

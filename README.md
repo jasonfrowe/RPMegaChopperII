@@ -46,6 +46,7 @@ As pilot of the experimental **SuperChopper**, your mission is to:
 | **Start / pause** | `Enter` / `P` | **Start** / **Select** |
 
 ### How to play
+* **Pick a sector** on the title screen with left and right; the title flies over it. Press fire to start there.
 * **Open the prisons.** Each of the four compounds has a blast door marked with a red target. Shoot it, or turn to face the screen and drop a bomb on it. Bombs fall straight down, one at a time.
 * **The cannon aims with the nose.** Speeding up tips the nose down and the tracers go down with it, which is how you hit doors and tanks; braking tips it up.
 * **Pick them up.** Freed hostages spread out in front of their prison. Come in low and they run for the chopper; land and they climb aboard, 16 at most. Don't come down on top of them.

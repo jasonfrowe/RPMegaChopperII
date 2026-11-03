@@ -8,6 +8,7 @@ Turn             X / K / C      B (or C / X / L1)
 Start / pause    Enter / P      Start / Select
 
 HOW TO PLAY
+On the title screen, left and right pick the sector to start in.
 1. Shoot the red-marked blast door of a prison, or turn to face the
    screen and drop a bomb on it. Speeding up tips the nose, and the
    cannon, down.
