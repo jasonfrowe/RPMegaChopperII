@@ -32,7 +32,7 @@
 #define TANK_SPEED ONE_PIXEL  /* chasing, or driving back into its zone */
 #define TANK_PATROL_SPEED 8   /* subpixels per frame */
 #define TANK_REBUILD 300      /* frames before a prison can roll out a replacement */
-#define TANK_FIRST_SHOT 40    /* frames a tank holds fire after coming into view (20 in the original) */
+#define TANK_FIRST_SHOT 60    /* frames a tank holds fire after coming into view (20 in the original) */
 #define TANK_FIRE_RANGE 120   /* px: it only fires at a chopper this close */
 #define TANK_SHELLS 3         /* in the air at once (2 in the original) */
 #define TANK_FIRE_CHANCE 4    /* percent a frame, once reloaded (2 in the original) */
