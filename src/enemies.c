@@ -9,6 +9,7 @@
 #include "projectiles.h"
 #include "sfx.h"
 #include "sprites.h"
+#include "weather.h"
 #include "xram.h"
 
 /* The rules are the original game's: see docs/ORIGINAL_GAMEPLAY.md.
@@ -17,10 +18,9 @@
 /* --- Tanks ---------------------------------------------------------------- */
 #define TANKS_ACTIVE 2        /* moving and shown at once, out of all the zones' */
 #define TANKS_PER_BASE 2      /* each prison's zone has two */
-#define TANK_TRIGGER 4        /* hostages aboard or saved before any tanks */
-#define TANK_SPAWN_DIST 480   /* px from the prison they roll out at, out of sight (320 in the original) */
-#define TANK_SPAWN_GAP 240    /* frames between a prison's tanks rolling out (60 in the original) */
-#define TANK_GRACE 360        /* frames a prison waits once it becomes the nearest */
+#define TANK_SPAWN_DIST 300   /* px from the prison they roll out at, just out of sight */
+#define TANK_SPAWN_GAP 180    /* frames between a prison's tanks rolling out (60 in the original) */
+#define TANK_TRAVEL 90        /* frames from rolling out to coming into view (measured) */
 #define TANK_OFFSCREEN 16     /* px off screen to roll out, wake or go dormant */
 #define TANK_RANGE 520        /* px from the chopper within which a rolled-out tank is awake */
 #define TANK_ZONE 200         /* px either side of its prison: a tank never leaves this */
@@ -33,7 +33,10 @@
 #define TANK_PATROL_SPEED 8   /* subpixels per frame */
 #define TANK_REBUILD 300      /* frames before a prison can roll out a replacement */
 #define TANK_FIRST_SHOT 90    /* frames before a tank that wakes up fires (20 in the original) */
-#define TANK_SHELLS 2         /* in the air at once */
+#define TANK_SHELLS 3         /* in the air at once (2 in the original) */
+#define TANK_FIRE_CHANCE 4    /* percent a frame, once reloaded (2 in the original) */
+#define TANK_RELOAD_MIN 24    /* frames (30-59 in the original) */
+#define TANK_RELOAD_SPREAD 24
 
 /* --- Balloon -------------------------------------------------------------- */
 #define BALLOON_TRIGGER 24    /* hostages out of the prisons (16 in the original) */
@@ -54,7 +57,8 @@
 #define JET_SPEED TO_SUB(4)
 #define JET_CLIMB 2           /* px per frame, leaving */
 #define JET_BOMBER_HEIGHT 80  /* px above landed height */
-#define JET_DROP_LEAD 68      /* px ahead of the jet's middle, +-10 */
+#define JET_STICK 3           /* bombs in a stick, JET_STICK_GAP frames apart */
+#define JET_STICK_GAP 4
 #define JET_BOMB_SPEED TO_SUB(2)
 #define JET_SHOT_RANGE 100
 #define JET_SHOT_SPEED TO_SUB(6)
@@ -126,13 +130,17 @@ typedef struct
     int16_t y;
     int8_t dir;
     uint8_t timer;
+    uint8_t bombs; /* dropped so far in this run's stick */
 } jet_t;
 
 static tank_t tanks[TANKS_ACTIVE];
 static zone_tank_t zone[NUM_COMPOUNDS][TANKS_PER_BASE];
-static bool tanks_triggered;
-static uint8_t last_nearest;
 static uint16_t roll_timer[NUM_COMPOUNDS];
+static bool opened[NUM_COMPOUNDS]; /* seen breached, so its tanks are due */
+
+/* How long after each prison is opened, in order, its first tank comes into
+ * view: longest at the first prison, quicker later on. */
+static const uint16_t first_tank[NUM_COMPOUNDS] = {8 * 60, 6 * 60, 5 * 60, 5 * 60};
 static balloon_t balloon;
 static jet_t jet;
 static uint16_t loiter_ground, loiter_air;
@@ -144,13 +152,13 @@ void enemies_init(void)
         tanks[i].active = false;
     for (uint8_t b = 0; b < NUM_COMPOUNDS; b++) {
         roll_timer[b] = 0;
+        opened[b] = false;
         for (uint8_t k = 0; k < TANKS_PER_BASE; k++) {
             zone[b][k].state = T_GARAGE;
             zone[b][k].awake = false;
         }
     }
-    tanks_triggered = false;
-    last_nearest = 0xFF;
+
     balloon.active = false;
     balloon.respawn = 0;
     jet.state = JET_OFF;
@@ -172,34 +180,53 @@ static bool offscreen(int16_t x, int16_t w, int16_t margin)
 
 /* --- Tanks ---------------------------------------------------------------- */
 
-/* Shell speeds in subpixels, from straight up to almost level: the
- * original's angles, scaled so the steepest shot climbs FLAK_PEAK px
- * (v * v / (2 * FLAK_GRAVITY) subpixels) and no higher. The original's
- * climbed 144 px, too high for this game's sky. */
-static const int8_t aim_vx[5] = {0, 28, 58, 73, 80};
-static const int8_t aim_vy[5] = {-80, -75, -58, -33, -13};
+/* Shell launches in subpixels, from straight up down to 20 degrees, all at
+ * the same speed: the steepest climbs about 110 px (v * v / (2 *
+ * FLAK_GRAVITY) subpixels). (The original's five were faster and climbed
+ * 144 px, too high for this game's sky.) */
+#define AIMS 8
+static const int8_t aim_vx[AIMS] = {0, 15, 29, 42, 54, 64, 73, 79};
+static const int8_t aim_vy[AIMS] = {-84, -83, -79, -73, -64, -54, -42, -29};
 
+/* Fire at the chopper: try each launch, flying it until it climbs to the
+ * chopper's height, and pick the one that gets there closest to where the
+ * chopper will be by then (going the way it is going, wind and all). If none can climb that high, lob the steepest
+ * anyway; it falls short. */
 static void tank_fire(tank_t *t, int16_t ccx)
 {
     int16_t ox = FROM_SUB(t->x) + TANK_W / 2;
     int16_t oy = TANK_Y + 4;
-    /* Aim 32 px above the chopper's top: the shell drops on the way. */
-    int16_t dx = abs(ccx - ox);
-    int16_t dy = oy - (FROM_SUB(chopper_y) - 32);
-    if (dy < 16)
-        dy = 16;
-    uint8_t a;
-    if (dx < dy / 4)
-        a = 0;
-    else if (dx < dy - dy / 4)
-        a = 1;
-    else if (dx < dy + dy / 2)
-        a = 2;
-    else if (dx < dy * 3)
-        a = 3;
-    else
-        a = 4;
-    ebullet_spawn(ox - 4, oy - 2, ccx > ox ? aim_vx[a] : -aim_vx[a], aim_vy[a], EB_FLAK);
+    ccx += (int16_t)(rng_next() % 13) - 6; /* not quite dead on */
+    int8_t side = ccx >= ox ? 1 : -1;
+    /* Everything in subpixels from the muzzle, small enough for 16 bits:
+     * the target starts where the chopper's middle is and moves as it does. */
+    int16_t tx0 = (ccx - ox) * ONE_PIXEL;
+    int16_t ty0 = (int16_t)(chopper_y - TO_SUB(oy)) + TO_SUB(CHOPPER_H / 2);
+    int8_t cvx = (int8_t)(chopper_vel_x + (chopper_is_landed ? 0 : wind));
+    int8_t cvy = (int8_t)(chopper_vel_y + (chopper_is_landed ? 0 : lift));
+    uint8_t best = 1;
+    int16_t best_err = 0x7FFF;
+    for (uint8_t a = 0; a < AIMS; a++) {
+        int16_t x = 0, y = 0, tx = tx0, ty = ty0;
+        int16_t vy = aim_vy[a];
+        int16_t vx = side * aim_vx[a];
+        while (vy < 0) { /* until it tops out */
+            x += vx;
+            y += vy;
+            vy += FLAK_GRAVITY;
+            tx += cvx;
+            ty += cvy;
+            if (y <= ty) {
+                int16_t err = abs(x - tx);
+                if (err < best_err) {
+                    best_err = err;
+                    best = a;
+                }
+                break;
+            }
+        }
+    }
+    ebullet_spawn(ox - 4, oy - 2, side * aim_vx[best], aim_vy[best], EB_FLAK);
     sfx_enemy(SFX_TANK_FIRE, SFX_PRI_FIRE);
 }
 
@@ -221,13 +248,18 @@ static void tank_sleep(tank_t *t)
     t->active = false;
 }
 
-/* The nearest prison rolls its tanks out of the garage: from far off on
- * whichever side has none of its tanks, out of sight, one at a time. A
- * prison that has just become the nearest waits a while first, so there is
- * time to start the rescue. */
+/* Prisons roll their tanks out of the garage once they have been opened,
+ * on a schedule: the first tank comes into view first_tank[] after the
+ * prison is opened, the second TANK_SPAWN_GAP later. They come from just
+ * out of sight, on whichever side has none yet, and only from the prison
+ * nearest the chopper. A rebuilt tank rolls out the same way. */
 static void roll_out(int16_t ccx, bool safe)
 {
     for (uint8_t b = 0; b < NUM_COMPOUNDS; b++) {
+        if (!opened[b] && compounds[b].breached) {
+            opened[b] = true;
+            roll_timer[b] = first_tank[compounds_breached() - 1] - TANK_TRAVEL;
+        }
         if (roll_timer[b])
             roll_timer[b]--;
         for (uint8_t k = 0; k < TANKS_PER_BASE; k++) {
@@ -237,12 +269,7 @@ static void roll_out(int16_t ccx, bool safe)
         }
     }
     uint8_t b = nearest_base(ccx);
-    if (b != last_nearest) {
-        last_nearest = b;
-        if (roll_timer[b] < TANK_GRACE)
-            roll_timer[b] = TANK_GRACE;
-    }
-    if (safe || roll_timer[b])
+    if (safe || !opened[b] || roll_timer[b])
         return;
     bool west = false;
     zone_tank_t *z = 0;
@@ -257,6 +284,7 @@ static void roll_out(int16_t ccx, bool safe)
     }
     if (!z)
         return;
+    /* On the side the chopper isn't looking at, if it can. */
     int16_t x = (!west ? base_x(b) - TANK_SPAWN_DIST : base_x(b) + TANK_SPAWN_DIST) - TANK_W / 2;
     if (x < 0)
         x = 0;
@@ -294,8 +322,10 @@ static void wake_and_sleep(int16_t ccx)
         for (uint8_t b = 0; b < NUM_COMPOUNDS; b++)
             for (uint8_t k = 0; k < TANKS_PER_BASE; k++) {
                 zone_tank_t *z = &zone[b][k];
+                if (z->state != T_OUT || z->awake)
+                    continue;
                 int16_t d = abs(z->x + TANK_W / 2 - ccx);
-                if (z->state == T_OUT && !z->awake && d < bd && offscreen(z->x, TANK_W, TANK_OFFSCREEN)) {
+                if (d < bd && offscreen(z->x, TANK_W, TANK_OFFSCREEN)) {
                     best = z;
                     bd = d;
                     bb = b;
@@ -318,10 +348,8 @@ static void wake_and_sleep(int16_t ccx)
 
 static void update_tanks(int16_t ccx, bool safe)
 {
-    /* Once 4 hostages are aboard or saved, the prisons start sending tanks. */
-    if (!tanks_triggered && saved_count + cargo_count >= TANK_TRIGGER)
-        tanks_triggered = true;
-    if (!tanks_triggered)
+    /* Nothing to do until a prison has been opened. */
+    if (!compounds_breached())
         return;
     roll_out(ccx, safe);
     wake_and_sleep(ccx);
@@ -397,13 +425,13 @@ static void update_tanks(int16_t ccx, bool safe)
         else if (abs(to_chopper) < 16)
             t->turret = 0;
 
-        /* Chasing and on screen: a 2% chance a frame once reloaded. */
+        /* Chasing and on screen: a chance every frame once reloaded. */
         if (t->cooldown) {
             t->cooldown--;
         } else if (z->mode == M_CHASE && screen_x(tx) > -20 && screen_x(tx) < SCREEN_W + 20 - TANK_W &&
-                   rng_range8(0, 99) < 2 && ebullets_of(EB_FLAK) < TANK_SHELLS) {
+                   rng_range8(0, 99) < TANK_FIRE_CHANCE && ebullets_of(EB_FLAK) < TANK_SHELLS) {
             tank_fire(t, ccx);
-            t->cooldown = rng_range8(30, 59);
+            t->cooldown = TANK_RELOAD_MIN + rng_range8(0, TANK_RELOAD_SPREAD);
         }
     }
 }
@@ -555,6 +583,7 @@ static void update_jet(int16_t ccx, bool safe)
          * out of the way is the answer to the warning. */
         j->state = JET_WARN;
         j->timer = JET_WARN_TIME;
+        j->bombs = 0;
         j->dir = (rng_next() & 1) ? 1 : -1;
         j->y = j->bomber ? GROUND_Y - JET_BOMBER_HEIGHT : FROM_SUB(chopper_y) + CHOPPER_H / 2 - JET_H / 2;
         msg_flash("JET INBOUND!", C_RED, JET_WARN_TIME);
@@ -577,10 +606,37 @@ static void update_jet(int16_t ccx, bool safe)
 
     if (j->state == JET_ATTACK) {
         if (j->bomber) {
-            if (ahead > JET_DROP_LEAD - 10 && ahead < JET_DROP_LEAD + 10) {
+            /* It works out how long a bomb takes to fall to the chopper and
+             * how far it carries meanwhile, and lets go of a stick of bombs
+             * spread either side of where the chopper will be. */
+            if (!j->bombs) {
+                int32_t drop = (chopper_y + TO_SUB(CHOPPER_H / 2)) - TO_SUB(j->y + JET_H / 2 + 6);
+                int32_t fall = 0;
+                int16_t v = 0;
+                uint8_t n = 0;
+                while (fall < drop && n < 120) {
+                    fall += v;
+                    v += JET_BOMB_GRAVITY;
+                    n++;
+                }
+                int16_t carry = FROM_SUB((int32_t)JET_BOMB_SPEED * n);
+                int16_t lead = (FROM_SUB((int32_t)chopper_vel_x * n)) * j->dir;
+                /* Each bomb lands where the jet was when it let go, plus
+                 * the carry, so the stick is spaced by how far the jet
+                 * flies between them: the first lands one gap short of the
+                 * chopper, the middle one on it, the last one gap past. */
+                int16_t gap = FROM_SUB(JET_SPEED) * JET_STICK_GAP;
+                if (ahead + lead <= carry + gap)
+                    j->timer = 0, j->bombs = 1;
+            } else {
+                j->timer++;
+            }
+            if (j->bombs && j->timer % JET_STICK_GAP == 0) {
                 ebullet_spawn(jcx - 4, j->y + JET_H / 2, j->dir * JET_BOMB_SPEED, 0, EB_BOMB);
-                sfx_enemy(SFX_BOMB_DROP, SFX_PRI_EVENT);
-                j->state = JET_LEAVE;
+                if (j->bombs == 1)
+                    sfx_enemy(SFX_BOMB_DROP, SFX_PRI_EVENT);
+                if (++j->bombs > JET_STICK)
+                    j->state = JET_LEAVE;
             }
         } else if (abs(ahead) < JET_SHOT_RANGE) {
             ebullet_spawn(j->dir > 0 ? jx + JET_W - 4 : jx - 4, j->y + JET_H / 2 - 2, j->dir * JET_SHOT_SPEED, 0,

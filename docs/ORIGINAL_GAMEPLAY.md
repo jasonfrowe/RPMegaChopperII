@@ -162,9 +162,6 @@ turning, is the original's rule.)
 - **Keeping apart:** a hostage walking straight at another doesn't make it
   stop, so two can't freeze face to face.
 - **Bombs open prisons** too, and the cannon still does.
-- **Tank shells** use the same five angles but slower, so the steepest
-  climbs 100 px instead of 144 (to about screen row 90): the sequel's sky
-  is taller relative to the tanks, and 144 px reached nearly to its top.
 - **Tanks don't twitch:** at the end of its leash a tank stops instead of
   turning back, and once parked under the chopper it stays put until the
   chopper is 12 px off. The turret swings with a little slack too.
@@ -172,19 +169,34 @@ turning, is the original's rule.)
   halfway between the last prison and home.
 - **The balloon** is a motorised barrage blimp (32x32) with a mine below
   it, facing the way it moves; its hit boxes are a little wider to match.
-- **Tanks keep to their zone:** as in the original, the prison nearest the
-  chopper rolls its two tanks out of its garage, but from 480 px away (not
-  320), 240 frames apart (not 60), and only after it has been the nearest
-  for 360 frames, so you can open a prison and start loading first. Then,
-  unlike the original, its tanks stay out in its zone (the prison +-200
-  px) for good: they patrol it slowly (+-140 px) until the chopper comes
-  within 180 px, chase it (firing) but never past the zone's edge, and go
-  back to patrolling 120 frames after losing it. So flying home from a far
-  prison you pass the tanks of every zone you have been to. Every prison's
-  tanks are tracked; only the two nearest the chopper move and show, and
-  they swap in and out only out of sight. A destroyed tank goes back to
-  its garage after 300 frames, to be rolled out again. They hold fire 90
-  frames after appearing (20 in the original).
+- **Tanks keep to their zone:** a prison sends its two tanks only once it
+  has been opened and is the nearest, from just out of sight (300 px), on a
+  schedule rather than the original's "4 hostages aboard" trigger: the
+  first comes into view 8 s after the first prison you open is opened, 6 s
+  at the second, 5 s at the third and fourth, the second tank 3 s later.
+  Then, unlike the original, its tanks stay out in its zone (the prison
+  +-200 px) for good: they patrol it slowly (+-140 px) until the chopper
+  comes within 180 px, chase it (firing) but never past the zone's edge,
+  and go back to patrolling 120 frames after losing it. So flying home from
+  a far prison you pass the tanks of every zone you have opened. Every
+  prison's tanks are tracked; only the two nearest the chopper move and
+  show, and they swap in and out only out of sight. A destroyed tank goes
+  back to its garage after 300 frames, to be rolled out again. They hold
+  fire 90 frames after appearing (20 in the original).
+- **Tank fire is aimed:** at each shot a tank flies eight launch angles (90
+  down to 20 degrees, all one speed) in a quick simulation and takes the
+  one that reaches the chopper's height closest to where the chopper will
+  be by then, leading its motion (wind and drafts included), give or take
+  6 px. Shells climb about 110 px at most, so a chopper with its top above
+  about screen row 60 is out of reach, which is inside the jets' zone
+  (above row 75): no height is safe from both. They fire more often than
+  the original (4% a frame after 24-48 frames' reload, not 2% after 30-59)
+  with up to 3 shells in the air.
+- **The bomber aims:** it works out how long its bombs take to fall to the
+  chopper and how far they carry, and drops a stick of three, 16 px apart,
+  centred on where the chopper will be. Each bursts on the ground and takes
+  a chopper within 18 px that is on or near the ground. (The original
+  dropped one bomb at a fixed lead.) Lifting off at the warning escapes.
 - **The balloon** waits for 24 hostages out (not 16) and appears 128 px
   off screen (not 64).
 - **Seeing the chopper:** a waiting hostage also comes when the chopper is

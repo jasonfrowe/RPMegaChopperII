@@ -194,8 +194,14 @@ void projectiles_update(void)
         if (y >= GROUND_LINE) {
             b->active = false;
             small_explosion_spawn(x, GROUND_LINE - 4);
-            if (b->kind == EB_BOMB)
-                sfx_enemy(SFX_EXPLODE, SFX_PRI_DESTROY);
+            if (b->kind == EB_BOMB) {
+                /* A jet's bomb bursts: a chopper on or near the ground
+                 * close by goes with it. */
+                explosion_spawn(x, GROUND_LINE - 8, true);
+                if (player_alive() && abs(x - chopper_cx()) < JET_BOMB_BLAST &&
+                    chopper_y >= GROUND_Y_SUB - TO_SUB(12))
+                    player_kill();
+            }
             continue;
         }
         /* Hit boxes around the chopper's middle: a shell 12 across and 8 up

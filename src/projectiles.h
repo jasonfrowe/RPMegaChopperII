@@ -19,6 +19,7 @@ void bomb_spawn(int16_t x, int16_t y, bool deep);
  * hostages; a jet's shot flies straight; a jet's bomb falls. */
 enum { EB_FLAK, EB_SHOT, EB_BOMB };
 #define JET_BOMB_GRAVITY 2 /* subpixels per frame, each frame */
+#define JET_BOMB_BLAST 18  /* px: a landed chopper this close to a burst is lost */
 /* Enemy shells in the air of a kind. */
 uint8_t ebullets_of(uint8_t kind);
 void ebullet_spawn(int16_t x, int16_t y, int16_t vx, int16_t vy, uint8_t kind);
