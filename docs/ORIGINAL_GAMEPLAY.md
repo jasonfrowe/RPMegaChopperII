@@ -230,8 +230,8 @@ sets each level's pace) keeps the rules above but swaps the enemies:
   post 140 px from its prison, on its side, and waits there, parked, until
   the chopper comes within 180 px. Then it chases (1.5 px/frame, never out
   of its zone), and goes back to its post 120 frames after losing it. They fire bursts of three machine-gun rounds, 5 frames apart,
-  straight at the chopper at 4 px/frame, which fly 20 frames (80 px),
-  and only at a chopper within 70 px across and 70 px up. The
+  straight at the chopper at 4 px/frame, which fly 25 frames (100 px),
+  and only at a chopper within 100 px across and 100 px up. The
   cannon kills one (anywhere on it, low over the ground), and so does a
   deep bomb. 150 points.
 - **Rocket turrets instead of the balloon.** One stands 260 px east of each
@@ -240,7 +240,7 @@ sets each level's pace) keeps the rules above but swaps the enemies:
   degrees) or steep (65) at the chopper, and holds fire for 90 frames
   each time it comes into view. Like level 1's jets, the launchers only
   go for a chopper that stays up high, out of the jeeps' reach (its
-  middle more than 70 px above a jeep): after 60 frames up there a
+  middle more than 100 px above a jeep): after 60 frames up there a
   warning, "MISSILE SITES HAVE YOU - GET LOW!", and after 120 frames
   each launcher within 200 px across warms up, its beacon blinking fast
   for 40 frames, and fires. Getting low before then calls it off. The
