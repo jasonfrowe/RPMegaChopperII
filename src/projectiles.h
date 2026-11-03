@@ -20,7 +20,7 @@ void bomb_spawn(int16_t x, int16_t y, bool deep);
  * machine-gun rounds fly straight and not far; a turret's rocket homes
  * on the chopper for a moment, then flies straight. */
 enum { EB_FLAK, EB_SHOT, EB_BOMB, EB_MG, EB_ROCKET };
-#define MG_LIFE 20        /* frames a machine-gun round flies: 80 px */
+#define MG_LIFE 25        /* frames a machine-gun round flies: 100 px */
 #define ROCKET_HOME 90    /* frames a rocket steers */
 #define ROCKET_TURN 1     /* subpixels per frame it can change speed each frame, steering */
 #define ROCKET_MAX 22     /* subpixels per frame, across and up or down: slower than the chopper */
