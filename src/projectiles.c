@@ -185,6 +185,11 @@ void projectiles_update(void)
             continue;
         b->y += b->vy;
         int16_t x = FROM_SUB(b->x) + 4, y = FROM_SUB(b->y) + 7;
+        if (enemies_bomb_falling(x, y)) {
+            b->active = false;
+            sfx_enemy(SFX_EXPLODE, SFX_PRI_DESTROY);
+            continue;
+        }
         if (y >= b->vx) {
             b->active = false;
             small_explosion_spawn(x, b->vx);

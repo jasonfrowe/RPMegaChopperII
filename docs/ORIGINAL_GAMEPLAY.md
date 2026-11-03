@@ -236,25 +236,25 @@ sets each level's pace) keeps the rules above but swaps the enemies:
   and only at a chopper within 100 px across and 100 px up. The
   cannon kills one (anywhere on it, low over the ground), and so does a
   deep bomb. 150 points.
-- **Rocket turrets instead of the balloon.** One stands 120 px east of each
-  prison, just past its guard tower, guarding it, and is manned once that prison is opened: a 32x24 launcher on a
-  sandbag ring, its beacon blinking slowly. It aims its launcher low (35
-  degrees) or steep (65) at the chopper, and holds fire for 90 frames
-  each time it comes into view. Like level 1's jets, the launchers only
-  go for a chopper that stays up high, at the top of the jeeps' reach or
-  above (its middle more than 76 px above a jeep: the two overlap by
-  24 px), and only while a manned, standing launcher on screen has it
-  within 200 px across: after 60 frames like that a warning, "MISSILE
-  SITES HAVE YOU - GET LOW!", and after 120 frames each such launcher
-  warms up, its beacon blinking fast for 40 frames, and fires. Getting
-  low, or away from them, before then calls it off. The rocket leaves at
-  about 1 px/frame and steers for the chopper's middle for 120 frames
-  (changing speed by 1/16 px/frame each frame, at most 1.1 px/frame each
-  way, under half the chopper's top speed), then flies straight and
-  burns out after 250 frames. At most two in the air; 150 to
-  240 frames' reload. The cannon or any bomb wrecks a
-  turret (250 points), rebuilt after 15 s; the cannon also shoots rockets
-  down (50 points).
+- **Rocket turrets instead of the balloon.** One stands on the roof of
+  each prison, over the door, and is manned once that prison is opened: a
+  32x24 launcher on a sandbag ring, its beacon blinking slowly. It aims
+  low (35 degrees) or steep (65) at the chopper, and holds fire for 60
+  frames each time it comes into view. Like level 1's jets, the launchers
+  only go for a chopper up high, at the top of the jeeps' reach or above
+  (its middle more than 76 px above a jeep: the two overlap by 24 px).
+  After 30 frames up there, the nearest launcher on screen within 200 px
+  across sends out a reticle ("MISSILE SITE TRACKING YOU - GET LOW!"),
+  which sweeps onto the chopper at 4 px/frame each way, locks on, blinks
+  for 24 frames with a warning tone (the beacon blinking fast), and the
+  launcher fires. Getting low before then breaks the lock. The rocket
+  leaves at about 1 px/frame and steers for the chopper's middle for
+  120 frames (changing speed by 1/16 px/frame each frame, at most
+  1.1 px/frame each way, under half the chopper's top speed), then flies
+  straight and burns out after 250 frames. At most two in the air; 90 to
+  150 frames' reload. The cannon or a bomb wrecks a launcher (250
+  points), rebuilt after 15 s; the cannon also shoots rockets down (50
+  points).
 - **Worms instead of jets**, once two prisons are open. Landed away from
   home more than 90 frames, a 2% chance a frame that a worm starts
   tunnelling 150 px off, at 1.25 px/frame; it gives up after 240 frames.

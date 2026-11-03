@@ -49,7 +49,7 @@
 #define JEEP_Y (GROUND_LINE - JEEP_H + 2)
 #define JEEP_SPEED 24         /* subpixels per frame, chasing: 1.5 px */
 #define JEEP_PATROL_SPEED 16  /* driving to its post */
-#define JEEP_POST 170         /* px either side of its prison it waits, parked (clear of the launcher) */
+#define JEEP_POST 140         /* px either side of its prison it waits, parked */
 #define JEEP_FIRE_RANGE 100    /* px across from the chopper */
 #define JEEP_REACH 100         /* px up to the chopper's middle: its rounds (MG_LIFE) go no further */
 #define JEEP_BURST 3          /* rounds a burst */
@@ -760,25 +760,26 @@ static bool jet_hit(int16_t x, int16_t y)
 }
 
 /* --- Rocket turrets (level 2) --------------------------------------------- */
-/* One stands east of each prison, on the way home, and is manned once
- * that prison is opened. It turns its launcher to the chopper, holds fire
- * for a while each time it comes into view, and only fires at a chopper
- * flying above the jeeps' reach, as level 1's jets do: after a while up
- * there a warning, and then the launchers in range warm up (the beacon
- * blinks fast) and fire a slow rocket that homes on the chopper for a
- * while. Dropping low before it fires calls it off. The cannon or a bomb
- * wrecks a launcher, and it is rebuilt after a while. */
-#define TURRET_FROM_BASE 120  /* px east of its prison's door: just past the guard tower */
-#define TURRET_Y (GROUND_LINE - TURRET_H + 2)
+/* One stands on the roof of each prison, over the door, and is manned once
+ * that prison is opened. It turns its launcher to the chopper and holds
+ * fire for a while each time it comes into view. It only goes for a
+ * chopper flying high, at the top of the jeeps' reach or above, as level
+ * 1's jets do: after a moment up there a reticle leaves the launcher and
+ * sweeps onto the chopper, locks on and blinks, and the launcher fires a
+ * slow rocket that homes on the chopper for a while. Getting low before
+ * it fires breaks the lock. The cannon or a bomb wrecks a launcher, and
+ * it is rebuilt after a while. */
+#define TURRET_Y (GROUND_LINE - 59 - TURRET_H) /* on the barracks roof */
 #define TURRET_WRECK 2        /* frame */
 #define TURRET_RANGE 200      /* px across to the chopper */
-#define TURRET_FIRST_SHOT 90  /* frames it holds fire after coming into view */
-#define TURRET_WARN 40        /* frames its light blinks before it fires */
-#define TURRET_RELOAD 150
-#define TURRET_RELOAD_SPREAD 90
+#define TURRET_FIRST_SHOT 60  /* frames it holds fire after coming into view */
+#define TURRET_AIR_WAIT 30    /* frames up high before a launcher starts to lock on */
+#define TURRET_SCAN_SPEED 4   /* px a frame the reticle closes on the chopper, each way */
+#define TURRET_LOCK 24        /* frames locked on before it fires */
+#define TURRET_RELOAD 90
+#define TURRET_RELOAD_SPREAD 60
 #define TURRET_REBUILD (15 * 60)
 #define ROCKETS 2             /* in the air at once, from all of them */
-#define TURRET_AIR_WAIT 120   /* frames up high before they fire; the warning at half that */
 #define TURRET_OVERLAP 24     /* px of the jeeps' reach the launchers cover too */
 #define TURRET_HIGH (JEEP_Y - JEEP_REACH + TURRET_OVERLAP) /* "up high": the chopper's middle above this row */
 
@@ -789,9 +790,17 @@ typedef struct
     uint8_t aim;      /* frame: 0 low, 1 steep */
     int8_t dir;       /* which way it faces */
     uint8_t cooldown;
-    uint8_t warn;     /* frames until it fires, blinking */
     uint16_t rebuild;
 } turret_t;
+
+/* The lock: one launcher at a time sweeps its reticle (world x, y, the
+ * reticle's middle) onto the chopper, then holds it there and fires. */
+static struct
+{
+    int8_t turret; /* which, or -1 */
+    int16_t x, y;
+    uint8_t lock;  /* frames left locked on, 0 while it sweeps */
+} scan;
 
 static turret_t turrets[NUM_COMPOUNDS];
 static bool light_on = true;
@@ -799,7 +808,7 @@ static uint16_t loiter_high; /* frames the chopper has been up high */
 
 static int16_t turret_x(uint8_t i) /* left edge */
 {
-    return base_x(i) + TURRET_FROM_BASE - TURRET_W / 2;
+    return base_x(i) - TURRET_W / 2;
 }
 
 static void turrets_init(void)
@@ -810,8 +819,8 @@ static void turrets_init(void)
         turrets[i].in_view = false;
         turrets[i].aim = 0;
         turrets[i].dir = -1;
-        turrets[i].warn = 0;
     }
+    scan.turret = -1;
     light_on = true; /* as the bank's palette has it */
 }
 
@@ -829,24 +838,31 @@ static bool turret_in_view(uint8_t i)
     return sx > -TURRET_W / 2 && sx < SCREEN_W - TURRET_W / 2;
 }
 
+static void turret_fire(uint8_t i)
+{
+    turret_t *t = &turrets[i];
+    int16_t mx = turret_x(i) + TURRET_W / 2 + 1 + t->dir * mouth_dx[t->aim];
+    ebullet_spawn(mx, TURRET_Y + 13 + mouth_dy[t->aim], t->dir * launch_vx[t->aim], launch_vy[t->aim], EB_ROCKET);
+    sfx_enemy(SFX_TANK_FIRE, SFX_PRI_FIRE);
+    t->cooldown = TURRET_RELOAD + rng_range8(0, TURRET_RELOAD_SPREAD);
+}
+
+static int16_t toward(int16_t from, int16_t to)
+{
+    int16_t d = to - from;
+    return d > TURRET_SCAN_SPEED ? from + TURRET_SCAN_SPEED : (d < -TURRET_SCAN_SPEED ? from - TURRET_SCAN_SPEED : to);
+}
+
 static void update_turrets(int16_t ccx, int16_t ccy, bool safe)
 {
-    /* The clock only runs, and the warning only comes, while a manned,
-     * standing launcher on screen has the chopper in range. */
-    bool threat = false;
-    for (uint8_t i = 0; i < NUM_COMPOUNDS; i++)
-        if (opened[i] && !turrets[i].wreck && turret_in_view(i) &&
-            abs(ccx - (turret_x(i) + TURRET_W / 2)) < TURRET_RANGE)
-            threat = true;
-    bool high = threat && !safe && player_alive() && !chopper_is_landed && ccy < TURRET_HIGH;
-    if (!high) {
+    bool high = !safe && player_alive() && !chopper_is_landed && ccy < TURRET_HIGH;
+    if (!high)
         loiter_high = 0;
-        radar_warned = false;
-    } else if (++loiter_high > TURRET_AIR_WAIT / 2 && !radar_warned) {
-        radar_warned = true;
-        msg_flash("MISSILE SITES HAVE YOU - GET LOW!", C_ORANGE, 120);
-    }
-    bool armed = loiter_high > TURRET_AIR_WAIT;
+    else if (loiter_high < 0xFFFF)
+        loiter_high++;
+
+    int8_t pick = -1;
+    int16_t pick_d = TURRET_RANGE;
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
         turret_t *t = &turrets[i];
         if (t->wreck) {
@@ -854,8 +870,6 @@ static void update_turrets(int16_t ccx, int16_t ccy, bool safe)
                 t->wreck = false;
             continue;
         }
-        int16_t tx = turret_x(i);
-        int16_t tcx = tx + TURRET_W / 2;
         bool view = turret_in_view(i);
         if (view && !t->in_view)
             t->cooldown = TURRET_FIRST_SHOT;
@@ -863,31 +877,43 @@ static void update_turrets(int16_t ccx, int16_t ccy, bool safe)
         if (!opened[i] || !view)
             continue;
         /* Point at the chopper. */
-        int16_t dx = ccx - tcx, up = TURRET_Y - ccy;
+        int16_t dx = ccx - (turret_x(i) + TURRET_W / 2), up = TURRET_Y - ccy;
         int16_t ax = abs(dx);
         t->dir = dx > 0 ? 1 : -1;
         t->aim = up < ax ? 0 : 1;
-        if (t->warn) {
-            if (!high) { /* got low in time */
-                t->warn = 0;
-                t->cooldown = 30;
-                continue;
-            }
-            if (--t->warn)
-                continue;
-            int16_t mx = tcx + 1 + t->dir * mouth_dx[t->aim];
-            ebullet_spawn(mx, TURRET_Y + 13 + mouth_dy[t->aim], t->dir * launch_vx[t->aim], launch_vy[t->aim],
-                          EB_ROCKET);
-            sfx_enemy(SFX_TANK_FIRE, SFX_PRI_FIRE);
-            t->cooldown = TURRET_RELOAD + rng_range8(0, TURRET_RELOAD_SPREAD);
-            continue;
-        }
         if (t->cooldown) {
             t->cooldown--;
-            continue;
+        } else if (ax < pick_d && up > 0) {
+            pick = (int8_t)i;
+            pick_d = ax;
         }
-        if (armed && ax < TURRET_RANGE && up > 0 && ebullets_of(EB_ROCKET) < ROCKETS)
-            t->warn = TURRET_WARN;
+    }
+
+    if (scan.turret >= 0) {
+        turret_t *t = &turrets[scan.turret];
+        if (!high || t->wreck || !t->in_view) {
+            scan.turret = -1; /* lost it */
+        } else if (!scan.lock) {
+            scan.x = toward(scan.x, ccx);
+            scan.y = toward(scan.y, ccy);
+            if (scan.x == ccx && scan.y == ccy) {
+                scan.lock = TURRET_LOCK;
+                sfx_enemy(SFX_WARNING, SFX_PRI_EVENT);
+            }
+        } else {
+            scan.x = ccx;
+            scan.y = ccy;
+            if (!--scan.lock) {
+                turret_fire((uint8_t)scan.turret);
+                scan.turret = -1;
+            }
+        }
+    } else if (pick >= 0 && loiter_high > TURRET_AIR_WAIT && ebullets_of(EB_ROCKET) < ROCKETS) {
+        scan.turret = pick;
+        scan.lock = 0;
+        scan.x = turret_x((uint8_t)pick) + TURRET_W / 2;
+        scan.y = TURRET_Y + 8;
+        msg_flash("MISSILE SITE TRACKING YOU - GET LOW!", C_ORANGE, 60);
     }
 }
 
@@ -896,10 +922,9 @@ static bool turret_hit(int16_t x, int16_t y, bool bomb)
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
         turret_t *t = &turrets[i];
         int16_t tcx = turret_x(i) + TURRET_W / 2;
-        if (t->wreck || abs(x - tcx) >= (bomb ? 20 : 14) || (!bomb && y < TURRET_Y + 2))
+        if (t->wreck || abs(x - tcx) >= (bomb ? 16 : 14) || y < TURRET_Y + 4 || y >= TURRET_Y + TURRET_H)
             continue;
         t->wreck = true;
-        t->warn = 0;
         t->rebuild = TURRET_REBUILD;
         add_score(250);
         explosion_spawn(tcx, TURRET_Y + 8, true);
@@ -1038,8 +1063,13 @@ void enemies_bomb(int16_t x, bool deep)
 {
     if (deep && vehicles_hit(x, 20))
         return;
-    if (boreal && !turret_hit(x, 0, true))
+    if (boreal)
         worm_hit(x, 0, true);
+}
+
+bool enemies_bomb_falling(int16_t x, int16_t y)
+{
+    return boreal && turret_hit(x, y, true);
 }
 
 bool enemies_check_hit(int16_t x, int16_t y)
@@ -1057,10 +1087,9 @@ bool enemies_check_hit(int16_t x, int16_t y)
 #define TURRET_LIGHT 10
 static void boreal_render(int16_t cam)
 {
-    bool warn = false;
+    bool warn = scan.turret >= 0;
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
         turret_t *t = &turrets[i];
-        warn |= t->warn != 0;
         uint8_t f = t->wreck ? TURRET_WRECK : t->aim;
         spr_place(SPR_BALLOON_START + i, XRAM_IMG_TURRET + f * TURRET_FRAME_BYTES, PAL_TURRET,
                   WH(TURRET_W, TURRET_H), t->dir > 0 ? OPT4_FLIP : OPT4, turret_x(i) - cam, TURRET_Y);
@@ -1073,7 +1102,12 @@ static void boreal_render(int16_t cam)
         xram0_write(PAL_ADDR(PAL_TURRET) + TURRET_LIGHT * 2, &c, 2);
     }
 
-    spr_hide(SPR_JET_START + 1);
+    /* The lock's reticle: turning while it sweeps, blinking once locked. */
+    if (scan.turret >= 0 && (!scan.lock || (frame_count & 4)))
+        spr_place(SPR_JET_START + 1, XRAM_IMG_TARGET + ((frame_count >> 2) & 1) * TARGET_FRAME_BYTES, PAL_TARGET,
+                  WH(16, 16), OPT4, scan.x - 8 - cam, scan.y - 8);
+    else
+        spr_hide(SPR_JET_START + 1);
     int16_t wx = FROM_SUB(worm.x);
     if (worm.state == WORM_TUNNEL)
         spr_place(SPR_JET_START, XRAM_IMG_MOUND + ((frame_count >> 3) & 1) * MOUND_FRAME_BYTES, PAL_WORM,
