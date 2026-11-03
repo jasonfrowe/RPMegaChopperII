@@ -225,29 +225,34 @@ turning, is the original's rule.)
 The original had one level. The sequel's second sector (`src/level.c`
 sets each level's pace) keeps the rules above but swaps the enemies:
 
-- **Jeeps instead of tanks.** The same zones, schedule (7, 5, 4 and 4 s
-  after each prison is opened) and patrols, at twice the speed (2 px/frame
-  chasing). They fire bursts of three machine-gun rounds, 5 frames apart,
+- **Jeeps instead of tanks.** The same zones and schedule (7, 5, 4 and 4 s
+  after each prison is opened), but they don't patrol: each drives to a
+  post 140 px from its prison, on its side, and waits there, parked, until
+  the chopper comes within 180 px. Then it chases (1.5 px/frame, never out
+  of its zone), and goes back to its post 120 frames after losing it. They fire bursts of three machine-gun rounds, 5 frames apart,
   straight at the chopper at 4 px/frame, which fly 36 frames (about
   144 px), and only at a chopper within 110 px across and 120 px up. The
   cannon kills one (anywhere on it, low over the ground), and so does a
   deep bomb. 150 points.
 - **Rocket turrets instead of the balloon.** One stands 260 px east of each
-  prison and is manned once that prison is opened. It aims its launcher
-  low, steep or straight up at the chopper, holds fire for 90 frames each
+  prison and is manned once that prison is opened: a 32x24 launcher on a
+  sandbag ring, its beacon blinking slowly. It aims its launcher low (35
+  degrees) or steep (65) at the chopper, holds fire for 90 frames each
   time it comes into view, and fires only at a chopper in the air within
-  200 px across: its light blinks for 40 frames, then a rocket leaves at
-  2.5 px/frame. For 60 frames the rocket steers for the chopper's middle
-  (changing speed by 1/8 px/frame each frame, at most 2.5 px/frame each
-  way), then flies straight and burns out after 150 frames. At most two
-  in the air; 150 to 240 frames' reload. The cannon or any bomb wrecks a
+  200 px across: its beacon blinks fast for 40 frames, then a rocket
+  leaves at 1.25 px/frame. For 90 frames the rocket steers for the
+  chopper's middle (changing speed by 1/16 px/frame each frame, at most
+  1.4 px/frame each way, so the chopper can outrun it), then flies
+  straight and burns out after 240 frames. At most two in the air; 150 to
+  240 frames' reload. The cannon or any bomb wrecks a
   turret (250 points), rebuilt after 15 s; the cannon also shoots rockets
   down (50 points).
 - **Worms instead of jets**, once two prisons are open. Landed away from
   home more than 90 frames, a 2% chance a frame that a worm starts
   tunnelling 150 px off, at 1.25 px/frame; it gives up after 240 frames.
   When it gets under the chopper's middle it bursts up for 56 frames and
-  takes a chopper within 16 px that is low enough. Any bomb on its ridge,
+  takes a chopper within 16 px that is low enough, and eats any hostage
+  on foot within 16 px. Any bomb on its ridge,
   or the cannon while it is up, kills it (300 points).
 - **Prisons roll vehicles out east** when the spot to the west is in view
   (the original waited), on both levels.

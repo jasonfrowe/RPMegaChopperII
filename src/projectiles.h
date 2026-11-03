@@ -21,10 +21,10 @@ void bomb_spawn(int16_t x, int16_t y, bool deep);
  * on the chopper for a moment, then flies straight. */
 enum { EB_FLAK, EB_SHOT, EB_BOMB, EB_MG, EB_ROCKET };
 #define MG_LIFE 36        /* frames a machine-gun round flies */
-#define ROCKET_HOME 60    /* frames a rocket steers */
-#define ROCKET_TURN 2     /* subpixels per frame it can change speed each frame, steering */
-#define ROCKET_MAX 40     /* subpixels per frame, across and up or down */
-#define ROCKET_LIFE 150   /* frames before it burns out */
+#define ROCKET_HOME 90    /* frames a rocket steers */
+#define ROCKET_TURN 1     /* subpixels per frame it can change speed each frame, steering */
+#define ROCKET_MAX 22     /* subpixels per frame, across and up or down: slower than the chopper */
+#define ROCKET_LIFE 240   /* frames before it burns out */
 #define JET_BOMB_GRAVITY 2 /* subpixels per frame, each frame */
 #define JET_BOMB_BLAST 18  /* px: a landed chopper this close to a burst is lost */
 /* Enemy shells in the air of a kind. */

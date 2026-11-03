@@ -204,7 +204,7 @@ def main():
             sys.exit(f"unknown symbol {name}")
         return hex(syms[name] + (int(plus) if plus else 0))
 
-    text = re.sub(r"\{(\w+)(?:\+(\d+))?\}", sub, text)
+    text = re.sub(r"\{([\w.]+)(?:\+(\d+))?\}", sub, text)
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
         f.write(text)
     cmd = [str(EMU), str(ROM), "--memseed", args.seed, "--mute", "--script", f.name]

@@ -38,5 +38,8 @@ void hostages_update(void);
 void hostages_render(void);
 /* A cannon shot, or a falling shell, at world (x, y): kills a hostage there. */
 bool hostages_check_hit(int16_t x, int16_t y);
+/* A worm bursting up at world x: every hostage on foot within `reach` of
+ * it is lost. True if it got any. */
+bool hostages_eaten(int16_t x, uint8_t reach);
 
 #endif /* GAME_HOSTAGES_H */

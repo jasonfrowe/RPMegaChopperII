@@ -109,6 +109,19 @@ bool hostages_check_hit(int16_t x, int16_t y)
     return false;
 }
 
+bool hostages_eaten(int16_t x, uint8_t reach)
+{
+    bool got = false;
+    for (uint8_t i = 0; i < MAX_ACTIVE_HOSTAGES; i++) {
+        hostage_t *h = &hostages[i];
+        if (h->state != H_INACTIVE && abs(x - (FROM_SUB(h->world_x) + 8)) < reach) {
+            kill(h);
+            got = true;
+        }
+    }
+    return got;
+}
+
 static void saved(hostage_t *h)
 {
     h->state = H_INACTIVE;

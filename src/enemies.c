@@ -3,6 +3,7 @@
 #include "compounds.h"
 #include "enemies.h"
 #include "game.h"
+#include "hostages.h"
 #include "hud.h"
 #include "input.h"
 #include "level.h"
@@ -46,8 +47,9 @@
 
 /* --- Jeeps (level 2), where they differ from tanks ------------------------ */
 #define JEEP_Y (GROUND_LINE - JEEP_H + 2)
-#define JEEP_SPEED (2 * ONE_PIXEL)
-#define JEEP_PATROL_SPEED 16
+#define JEEP_SPEED 24         /* subpixels per frame, chasing: 1.5 px */
+#define JEEP_PATROL_SPEED 16  /* driving to its post */
+#define JEEP_POST 140         /* px either side of its prison it waits, parked */
 #define JEEP_FIRE_RANGE 110   /* px across from the chopper */
 #define JEEP_REACH 120        /* px up to the chopper's middle: its rounds go no further */
 #define JEEP_BURST 3          /* rounds a burst */
@@ -465,6 +467,11 @@ static void update_tanks(int16_t ccx, bool safe)
                 target = home + TANK_ZONE;
             if (target < home - TANK_ZONE)
                 target = home - TANK_ZONE;
+        } else if (boreal) {
+            /* A jeep waits parked at its post, on its side of the prison,
+             * until it sees the chopper. */
+            speed = veh_patrol;
+            target = home + (from_base < 0 ? -JEEP_POST : JEEP_POST);
         } else {
             /* Back and forth across the middle of its zone, slowly. */
             speed = veh_patrol;
@@ -760,7 +767,8 @@ static bool jet_hit(int16_t x, int16_t y)
  * the chopper for a moment. The cannon or a bomb wrecks it, and it is
  * rebuilt after a while. */
 #define TURRET_FROM_BASE 260  /* px east of its prison's door */
-#define TURRET_Y (GROUND_LINE - TURRET_H + 3)
+#define TURRET_Y (GROUND_LINE - TURRET_H + 2)
+#define TURRET_WRECK 2        /* frame */
 #define TURRET_RANGE 200      /* px across to the chopper */
 #define TURRET_FIRST_SHOT 90  /* frames it holds fire after coming into view */
 #define TURRET_WARN 40        /* frames its light blinks before it fires */
@@ -768,13 +776,13 @@ static bool jet_hit(int16_t x, int16_t y)
 #define TURRET_RELOAD_SPREAD 90
 #define TURRET_REBUILD (15 * 60)
 #define ROCKETS 2             /* in the air at once, from all of them */
-#define ROCKET_SPEED 40       /* subpixels per frame, at launch */
+#define ROCKET_SPEED 20       /* subpixels per frame, at launch */
 
 typedef struct
 {
     bool wreck;
     bool in_view;
-    uint8_t aim;      /* frame: 0 low, 1 steep, 2 straight up */
+    uint8_t aim;      /* frame: 0 low, 1 steep */
     int8_t dir;       /* which way it faces */
     uint8_t cooldown;
     uint8_t warn;     /* frames until it fires, blinking */
@@ -801,9 +809,12 @@ static void turrets_init(void)
     light_on = true; /* as the bank's palette has it */
 }
 
-/* Launch speeds for each aim: 30 degrees, 60, straight up. */
-static const int8_t launch_vx[3] = {35, 20, 0};
-static const int8_t launch_vy[3] = {-20, -35, -ROCKET_SPEED};
+/* Each aim (35 and 65 degrees): launch speeds, and where the tubes' mouths
+ * are from the launcher's pivot, at (TURRET_W / 2 + 1, 13) in the sprite. */
+static const int8_t launch_vx[2] = {16, 8};
+static const int8_t launch_vy[2] = {-11, -18};
+static const int8_t mouth_dx[2] = {14, 7};
+static const int8_t mouth_dy[2] = {-9, -14};
 
 static void update_turrets(int16_t ccx, int16_t ccy, bool safe)
 {
@@ -826,13 +837,13 @@ static void update_turrets(int16_t ccx, int16_t ccy, bool safe)
         int16_t dx = ccx - tcx, up = TURRET_Y - ccy;
         int16_t ax = abs(dx);
         t->dir = dx > 0 ? 1 : -1;
-        t->aim = up * 5 < ax * 3 ? 0 : (up * 3 < ax * 5 ? 1 : 2);
+        t->aim = up < ax ? 0 : 1;
         if (t->warn) {
             if (--t->warn)
                 continue;
-            int8_t vx = t->dir * launch_vx[t->aim];
-            int16_t mx = tcx + t->dir * (t->aim == 2 ? 0 : (t->aim == 1 ? 6 : 10));
-            ebullet_spawn(mx - 4, TURRET_Y + (t->aim == 0 ? 2 : 0), vx, launch_vy[t->aim], EB_ROCKET);
+            int16_t mx = tcx + 1 + t->dir * mouth_dx[t->aim];
+            ebullet_spawn(mx, TURRET_Y + 13 + mouth_dy[t->aim], t->dir * launch_vx[t->aim], launch_vy[t->aim],
+                          EB_ROCKET);
             sfx_enemy(SFX_TANK_FIRE, SFX_PRI_FIRE);
             t->cooldown = TURRET_RELOAD + rng_range8(0, TURRET_RELOAD_SPREAD);
             continue;
@@ -852,7 +863,7 @@ static bool turret_hit(int16_t x, int16_t y, bool bomb)
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
         turret_t *t = &turrets[i];
         int16_t tcx = turret_x(i) + TURRET_W / 2;
-        if (t->wreck || abs(x - tcx) >= (bomb ? 18 : 11) || (!bomb && y < TURRET_Y + 2))
+        if (t->wreck || abs(x - tcx) >= (bomb ? 20 : 14) || (!bomb && y < TURRET_Y + 2))
             continue;
         t->wreck = true;
         t->warn = 0;
@@ -946,6 +957,8 @@ static void update_worm(int16_t ccx, bool safe)
         worm.state = WORM_OFF;
         return;
     }
+    if (lunge_frame(t) == 2 && hostages_eaten(wx, WORM_BITE))
+        msg_flash("A WORM GOT A HOSTAGE!", C_RED, 90);
     if (lunge_frame(t) == 2 && player_alive() && abs(ccx - wx) < WORM_BITE &&
         FROM_SUB(chopper_y) + CHOPPER_H > WORM_TOP + 6) {
         explosion_spawn(ccx, FROM_SUB(chopper_y) + CHOPPER_H / 2, true);
@@ -1015,11 +1028,12 @@ static void boreal_render(int16_t cam)
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
         turret_t *t = &turrets[i];
         warn |= t->warn != 0;
-        uint8_t f = t->wreck ? 3 : t->aim;
+        uint8_t f = t->wreck ? TURRET_WRECK : t->aim;
         spr_place(SPR_BALLOON_START + i, XRAM_IMG_TURRET + f * TURRET_FRAME_BYTES, PAL_TURRET,
                   WH(TURRET_W, TURRET_H), t->dir > 0 ? OPT4_FLIP : OPT4, turret_x(i) - cam, TURRET_Y);
     }
-    bool on = !warn || (frame_count & 4);
+    /* A slow blink to catch the eye; fast just before it fires. */
+    bool on = warn ? (frame_count & 4) != 0 : (frame_count & 31) < 10;
     if (on != light_on) {
         light_on = on;
         uint16_t c = (on ? COLOR_FROM_RGB8(255, 60, 50) : COLOR_FROM_RGB8(90, 12, 14)) | COLOR_ALPHA_MASK;

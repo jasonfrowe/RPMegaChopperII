@@ -86,7 +86,7 @@ static const uint16_t mid_beacon_on[LEVEL_BANKS] = {0x297C, 0x297C};
 
 /* Each level's enemies share one region of XRAM, filled from its bank:
  * <NAME>_OFS is where a sheet starts in it. */
-#define ENEMY_IMG_BYTES 3776
+#define ENEMY_IMG_BYTES 3944
 /* Level 1 */
 #define TANK_W 40
 #define TANK_H 20
@@ -109,30 +109,30 @@ static const uint16_t mid_beacon_on[LEVEL_BANKS] = {0x297C, 0x297C};
 #define JEEP_FRAMES 4
 #define JEEP_FRAME_BYTES 256
 #define JEEP_OFS 0
-#define TURRET_W 24
-#define TURRET_H 20
-#define TURRET_FRAMES 4
-#define TURRET_FRAME_BYTES 240
+#define TURRET_W 32
+#define TURRET_H 24
+#define TURRET_FRAMES 3
+#define TURRET_FRAME_BYTES 384
 #define TURRET_OFS 1024
 #define ROCKET_W 12
 #define ROCKET_H 12
 #define ROCKET_FRAMES 5
 #define ROCKET_FRAME_BYTES 72
-#define ROCKET_OFS 1984
+#define ROCKET_OFS 2176
 #define WORM_W 24
 #define WORM_H 32
 #define WORM_FRAMES 3
 #define WORM_FRAME_BYTES 384
-#define WORM_OFS 2344
+#define WORM_OFS 2536
 #define MOUND_W 32
 #define MOUND_H 8
 #define MOUND_FRAMES 2
 #define MOUND_FRAME_BYTES 128
-#define MOUND_OFS 3496
+#define MOUND_OFS 3688
 
 /* Tile layers: room for this many tiles, whatever a level uses. */
 #define FAR_TILE 8
-#define FAR_TILES 216
+#define FAR_TILES 214
 #define FAR_TILE_BYTES 32
 #define FAR_MAP_COLS 64
 #define FAR_MAP_ROWS 25

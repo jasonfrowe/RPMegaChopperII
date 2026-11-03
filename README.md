@@ -59,9 +59,9 @@ As pilot of the experimental **SuperChopper**, your mission is to:
   * **Blizzards** blow in from time to time: it gets hard to see, and the wind pushes you sideways, up to about a third of your top speed in the gusts. They pass in 20 seconds or so.
   * If the chopper goes down, everyone aboard is lost.
 * **Sector 2, the lakes**: boreal forest and frozen lakes under the aurora, with different enemies:
-  * **Jeeps** in place of tanks: the same zones and patrols, but twice as fast, and they fire machine-gun bursts straight at you. Their rounds don't carry far, so climb. Strafe them with the cannon (nose down) or bomb them from high up.
-  * **Rocket turrets** in place of the blimp: one east of each prison, manned once it is open. When its red light blinks it is about to fire a rocket that steers toward you for about a second, then flies straight: turn hard. Shoot or bomb the turret; it is rebuilt in 15 seconds. The cannon can also shoot rockets down.
-  * **Worms** in place of jets, once two prisons are open: sit on the ground too long and a ridge of earth tunnels toward you. Lift off before it gets there, or bomb the ridge.
+  * **Jeeps** in place of tanks: each waits parked near its prison until it sees you, then gives chase, firing machine-gun bursts straight at you. Their rounds don't carry far, so climb. Strafe them with the cannon (nose down) or bomb them from high up.
+  * **Rocket turrets** in place of the blimp: one east of each prison, manned once it is open, its beacon blinking. When the beacon blinks fast it is about to fire a slow rocket that steers toward you for a second and a half, then flies straight: outrun it or turn hard. Shoot or bomb the turret; it is rebuilt in 15 seconds. The cannon can also shoot rockets down.
+  * **Worms** in place of jets, once two prisons are open: sit on the ground too long and a ridge of earth tunnels toward you. Lift off before it gets there, or bomb the ridge. It eats any hostage it comes up under.
 * After the last sector the game goes round again, harder: sooner tanks and jeeps, earlier jets and worms, stronger storms.
 * **Sector clear** when every hostage is home or lost, with a 200-point bonus for each one saved. An extra chopper every 20,000 points.
 
