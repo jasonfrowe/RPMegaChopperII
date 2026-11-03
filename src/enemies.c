@@ -15,18 +15,24 @@
  * Heights "above landed height" are measured up from GROUND_Y. */
 
 /* --- Tanks ---------------------------------------------------------------- */
-#define TANKS_ACTIVE 2        /* on the go at once, out of all the zones' */
-#define TANKS_PER_BASE 2      /* each prison's zone: one west of it, one east */
+#define TANKS_ACTIVE 2        /* moving and shown at once, out of all the zones' */
+#define TANKS_PER_BASE 2      /* each prison's zone has two */
 #define TANK_TRIGGER 4        /* hostages aboard or saved before any tanks */
-#define TANK_START_DIST 300   /* px from the prison a zone's tanks start, and rebuilt ones roll in */
-#define TANK_RANGE 520        /* px from the chopper within which a zone tank comes to life */
-#define TANK_OFFSCREEN 16     /* px off screen it must be to appear or go dormant */
-#define TANK_LEASH 100        /* px from the prison */
+#define TANK_SPAWN_DIST 480   /* px from the prison they roll out at, out of sight (320 in the original) */
+#define TANK_SPAWN_GAP 240    /* frames between a prison's tanks rolling out (60 in the original) */
+#define TANK_GRACE 360        /* frames a prison waits once it becomes the nearest */
+#define TANK_OFFSCREEN 16     /* px off screen to roll out, wake or go dormant */
+#define TANK_RANGE 520        /* px from the chopper within which a rolled-out tank is awake */
+#define TANK_ZONE 200         /* px either side of its prison: a tank never leaves this */
+#define TANK_PATROL 140       /* px either side of its prison it patrols */
+#define TANK_SPOT 180         /* px: how near the chopper must be for a tank to see it */
+#define TANK_LOSE 120         /* frames out of sight before a tank gives up the chase */
 #define TANK_RESUME 12        /* px the chopper must move off before a parked tank follows */
 #define TANK_SPACING 45       /* px behind another tank */
-#define TANK_SPEED ONE_PIXEL
-#define TANK_REBUILD 300      /* frames before a destroyed tank's replacement rolls out */
-#define TANK_FIRST_SHOT 90    /* frames before a tank that comes to life fires (20 in the original) */
+#define TANK_SPEED ONE_PIXEL  /* chasing, or driving back into its zone */
+#define TANK_PATROL_SPEED 8   /* subpixels per frame */
+#define TANK_REBUILD 300      /* frames before a prison can roll out a replacement */
+#define TANK_FIRST_SHOT 90    /* frames before a tank that wakes up fires (20 in the original) */
 #define TANK_SHELLS 2         /* in the air at once */
 
 /* --- Balloon -------------------------------------------------------------- */
@@ -53,30 +59,46 @@
 #define JET_SHOT_RANGE 100
 #define JET_SHOT_SPEED TO_SUB(6)
 
+/* Every prison's tanks, all the time. A tank is in its prison's garage,
+ * out in its zone, or a wreck waiting to be rebuilt. Out in its zone it
+ * patrols until it sees the chopper, chases it (never out of the zone),
+ * and goes back to patrolling once it loses it. */
+enum
+{
+    T_GARAGE,
+    T_OUT,
+    T_WRECK
+};
+enum
+{
+    M_PATROL,
+    M_CHASE,
+    M_RETURN /* outside its zone, as when it has just rolled out: drive back in */
+};
+
+typedef struct
+{
+    uint8_t state;
+    uint8_t mode;
+    bool awake;    /* one of the active tanks just now */
+    int16_t x;     /* left edge, while dormant */
+    int8_t dir;
+    int8_t patrol; /* which way its patrol is heading */
+    uint8_t lost;  /* frames since it last saw the chopper */
+    uint16_t rebuild;
+} zone_tank_t;
+
+/* The tanks moving and shown: TANKS_ACTIVE of them, picked from the zones. */
 typedef struct
 {
     bool active;
     int32_t x; /* subpixels, left edge */
-    int8_t dir;
     bool moving;
-    uint8_t base;
+    uint8_t base, slot; /* whose: zone[base][slot] */
     uint8_t cooldown;
     uint8_t anim;
     int8_t turret; /* -1 up-left, 0 up, 1 up-right */
-    uint8_t slot;  /* which of its zone's tanks it is */
 } tank_t;
-
-/* Every prison's tanks, all the time: where each is, and whether it is
- * alive. Only TANKS_ACTIVE of them, the ones near the chopper, move and
- * show; the rest wait where they were. */
-typedef struct
-{
-    bool alive;
-    bool awake; /* one of the active tanks just now */
-    int16_t x;
-    int8_t dir;
-    uint16_t rebuild;
-} zone_tank_t;
 
 typedef struct
 {
@@ -109,6 +131,8 @@ typedef struct
 static tank_t tanks[TANKS_ACTIVE];
 static zone_tank_t zone[NUM_COMPOUNDS][TANKS_PER_BASE];
 static bool tanks_triggered;
+static uint8_t last_nearest;
+static uint16_t roll_timer[NUM_COMPOUNDS];
 static balloon_t balloon;
 static jet_t jet;
 static uint16_t loiter_ground, loiter_air;
@@ -118,10 +142,15 @@ void enemies_init(void)
 {
     for (uint8_t i = 0; i < TANKS_ACTIVE; i++)
         tanks[i].active = false;
-    for (uint8_t b = 0; b < NUM_COMPOUNDS; b++)
-        for (uint8_t k = 0; k < TANKS_PER_BASE; k++)
-            zone[b][k].alive = zone[b][k].awake = false;
+    for (uint8_t b = 0; b < NUM_COMPOUNDS; b++) {
+        roll_timer[b] = 0;
+        for (uint8_t k = 0; k < TANKS_PER_BASE; k++) {
+            zone[b][k].state = T_GARAGE;
+            zone[b][k].awake = false;
+        }
+    }
     tanks_triggered = false;
+    last_nearest = 0xFF;
     balloon.active = false;
     balloon.respawn = 0;
     jet.state = JET_OFF;
@@ -174,68 +203,87 @@ static void tank_fire(tank_t *t, int16_t ccx)
     sfx_enemy(SFX_TANK_FIRE, SFX_PRI_FIRE);
 }
 
-/* Where a zone's tank k starts, or rolls in from: west (k 0) or east of
- * its prison, never on the home side of the border. */
-static int16_t zone_start(uint8_t b, uint8_t k)
+static uint8_t nearest_base(int16_t x)
 {
-    int16_t x = (k ? base_x(b) + TANK_START_DIST : base_x(b) - TANK_START_DIST) - TANK_W / 2;
-    if (x < 0)
-        x = 0;
-    if (x > SAFE_LINE - TANK_W - 8)
-        x = SAFE_LINE - TANK_W - 8;
-    return x;
+    uint8_t best = 0;
+    for (uint8_t i = 1; i < NUM_COMPOUNDS; i++)
+        if (abs(base_x(i) - x) < abs(base_x(best) - x))
+            best = i;
+    return best;
 }
 
-/* Put an active tank back into its zone, where it is, to wait. */
+/* An active tank's zone tank goes back to waiting where it is. */
 static void tank_sleep(tank_t *t)
 {
     zone_tank_t *z = &zone[t->base][t->slot];
     z->x = FROM_SUB(t->x);
-    z->dir = t->dir;
     z->awake = false;
     t->active = false;
 }
 
-static void update_tanks(int16_t ccx, bool safe)
+/* The nearest prison rolls its tanks out of the garage: from far off on
+ * whichever side has none of its tanks, out of sight, one at a time. A
+ * prison that has just become the nearest waits a while first, so there is
+ * time to start the rescue. */
+static void roll_out(int16_t ccx, bool safe)
 {
-    /* Once 4 hostages are aboard or saved, every prison gets its two. */
-    if (!tanks_triggered && saved_count + cargo_count >= TANK_TRIGGER) {
-        tanks_triggered = true;
-        for (uint8_t b = 0; b < NUM_COMPOUNDS; b++)
-            for (uint8_t k = 0; k < TANKS_PER_BASE; k++) {
-                zone_tank_t *z = &zone[b][k];
-                z->alive = true;
-                z->awake = false;
-                z->x = zone_start(b, k);
-                z->dir = k ? -1 : 1;
-            }
-    }
-    if (!tanks_triggered)
-        return;
-
-    /* Destroyed ones are rebuilt, and roll in from their start, out of sight. */
-    for (uint8_t b = 0; b < NUM_COMPOUNDS; b++)
+    for (uint8_t b = 0; b < NUM_COMPOUNDS; b++) {
+        if (roll_timer[b])
+            roll_timer[b]--;
         for (uint8_t k = 0; k < TANKS_PER_BASE; k++) {
             zone_tank_t *z = &zone[b][k];
-            if (z->alive || (z->rebuild && --z->rebuild))
-                continue;
-            int16_t x = zone_start(b, k);
-            if (offscreen(x, TANK_W, TANK_OFFSCREEN)) {
-                z->alive = true;
-                z->x = x;
-                z->dir = k ? -1 : 1;
-            }
+            if (z->state == T_WRECK && !--z->rebuild)
+                z->state = T_GARAGE;
         }
+    }
+    uint8_t b = nearest_base(ccx);
+    if (b != last_nearest) {
+        last_nearest = b;
+        if (roll_timer[b] < TANK_GRACE)
+            roll_timer[b] = TANK_GRACE;
+    }
+    if (safe || roll_timer[b])
+        return;
+    bool west = false;
+    zone_tank_t *z = 0;
+    for (uint8_t k = 0; k < TANKS_PER_BASE; k++) {
+        zone_tank_t *t = &zone[b][k];
+        if (t->state == T_GARAGE) {
+            if (!z)
+                z = t;
+        } else if (t->state == T_OUT && t->x + TANK_W / 2 < base_x(b)) {
+            west = true;
+        }
+    }
+    if (!z)
+        return;
+    int16_t x = (!west ? base_x(b) - TANK_SPAWN_DIST : base_x(b) + TANK_SPAWN_DIST) - TANK_W / 2;
+    if (x < 0)
+        x = 0;
+    if (x > SAFE_LINE - TANK_W - 8)
+        x = SAFE_LINE - TANK_W - 8; /* never on the home side of the border */
+    if (!offscreen(x, TANK_W, TANK_OFFSCREEN))
+        return;
+    z->state = T_OUT;
+    z->mode = M_RETURN;
+    z->awake = false;
+    z->x = x;
+    z->dir = x < base_x(b) ? 1 : -1;
+    z->patrol = z->dir;
+    z->lost = 0;
+    roll_timer[b] = TANK_SPAWN_GAP;
+}
 
-    /* Active tanks that are far off and out of sight go back to waiting. */
+/* Wake the nearest dormant tanks out in their zones, put far ones to
+ * sleep; only ever out of sight, so none pops in or out of view. */
+static void wake_and_sleep(int16_t ccx)
+{
     for (uint8_t i = 0; i < TANKS_ACTIVE; i++) {
         tank_t *t = &tanks[i];
         int16_t tx = FROM_SUB(t->x);
         if (t->active && abs(tx + TANK_W / 2 - ccx) > TANK_RANGE + 64 && offscreen(tx, TANK_W, TANK_OFFSCREEN))
             tank_sleep(t);
     }
-    /* The nearest waiting tank within range, out of sight, takes a free
-     * slot. (Never in view, so none appears out of nowhere.) */
     for (uint8_t i = 0; i < TANKS_ACTIVE; i++) {
         tank_t *t = &tanks[i];
         if (t->active)
@@ -247,7 +295,7 @@ static void update_tanks(int16_t ccx, bool safe)
             for (uint8_t k = 0; k < TANKS_PER_BASE; k++) {
                 zone_tank_t *z = &zone[b][k];
                 int16_t d = abs(z->x + TANK_W / 2 - ccx);
-                if (z->alive && !z->awake && d < bd && offscreen(z->x, TANK_W, TANK_OFFSCREEN)) {
+                if (z->state == T_OUT && !z->awake && d < bd && offscreen(z->x, TANK_W, TANK_OFFSCREEN)) {
                     best = z;
                     bd = d;
                     bb = b;
@@ -255,39 +303,77 @@ static void update_tanks(int16_t ccx, bool safe)
                 }
             }
         if (!best)
-            break;
+            return;
         best->awake = true;
         t->active = true;
         t->base = bb;
         t->slot = bk;
         t->x = TO_SUB(best->x);
-        t->dir = best->dir;
         t->moving = true;
         t->cooldown = TANK_FIRST_SHOT;
         t->anim = 0;
         t->turret = 0;
     }
+}
+
+static void update_tanks(int16_t ccx, bool safe)
+{
+    /* Once 4 hostages are aboard or saved, the prisons start sending tanks. */
+    if (!tanks_triggered && saved_count + cargo_count >= TANK_TRIGGER)
+        tanks_triggered = true;
+    if (!tanks_triggered)
+        return;
+    roll_out(ccx, safe);
+    wake_and_sleep(ccx);
 
     for (uint8_t i = 0; i < TANKS_ACTIVE; i++) {
         tank_t *t = &tanks[i];
         if (!t->active)
             continue;
+        zone_tank_t *z = &zone[t->base][t->slot];
         int16_t tx = FROM_SUB(t->x);
         int16_t tcx = tx + TANK_W / 2;
-        int16_t from_base = tcx - base_x(t->base);
+        int16_t home = base_x(t->base);
+        int16_t from_base = tcx - home;
         int16_t to_chopper = ccx - tcx;
-        /* After the chopper, but parked once under it until it is a good
-         * way off again, and stopped (not turned back) at the end of the
-         * leash, so it doesn't twitch back and forth. */
-        int8_t want = to_chopper > 0 ? 1 : -1;
-        if (abs(to_chopper) < (t->moving ? 4 : TANK_RESUME))
+
+        /* What it is doing: back into its zone, chasing, or patrolling. */
+        bool sees = player_alive() && !safe && abs(to_chopper) < TANK_SPOT && abs(ccx - home) < TANK_ZONE + TANK_SPOT;
+        if (z->mode == M_RETURN) {
+            if (abs(from_base) <= TANK_ZONE)
+                z->mode = sees ? M_CHASE : M_PATROL;
+        } else if (sees) {
+            z->mode = M_CHASE;
+            z->lost = 0;
+        } else if (z->mode == M_CHASE && ++z->lost > TANK_LOSE) {
+            z->mode = M_PATROL; /* lost it: back to patrolling */
+        }
+
+        int16_t target;
+        int8_t speed = TANK_SPEED;
+        if (z->mode == M_RETURN) {
+            target = home;
+        } else if (z->mode == M_CHASE) {
+            /* Under the chopper, but no further than the edge of its zone. */
+            target = ccx;
+            if (target > home + TANK_ZONE)
+                target = home + TANK_ZONE;
+            if (target < home - TANK_ZONE)
+                target = home - TANK_ZONE;
+        } else {
+            /* Back and forth across the middle of its zone, slowly. */
+            speed = TANK_PATROL_SPEED;
+            if (from_base >= TANK_PATROL)
+                z->patrol = -1;
+            else if (from_base <= -TANK_PATROL)
+                z->patrol = 1;
+            target = home + z->patrol * (TANK_PATROL + 8);
+        }
+        int16_t to_target = target - tcx;
+        /* Parked under the chopper until it is a good way off again. */
+        int8_t want = to_target > 0 ? 1 : -1;
+        if (abs(to_target) < (t->moving ? 4 : (z->mode == M_CHASE ? TANK_RESUME : 4)))
             want = 0;
-        if ((want > 0 && from_base >= TANK_LEASH) || (want < 0 && from_base <= -TANK_LEASH))
-            want = 0;
-        if (from_base > TANK_LEASH + 8)
-            want = -1; /* well outside it, as when its prison changes: drive back */
-        else if (from_base < -TANK_LEASH - 8)
-            want = 1;
         for (uint8_t j = 0; j < TANKS_ACTIVE && want; j++) {
             if (j == i || !tanks[j].active)
                 continue;
@@ -297,23 +383,25 @@ static void update_tanks(int16_t ccx, bool safe)
         }
         t->moving = want != 0;
         if (want) {
-            t->dir = want;
-            t->x += want * TANK_SPEED;
+            z->dir = want;
+            t->x += want * speed;
             t->anim++;
         }
-        /* The turret swings with a little slack too. */
-        if (to_chopper > 24)
+        /* The turret follows the chopper while it chases, with some slack. */
+        if (z->mode != M_CHASE)
+            t->turret = 0;
+        else if (to_chopper > 24)
             t->turret = 1;
         else if (to_chopper < -24)
             t->turret = -1;
         else if (abs(to_chopper) < 16)
             t->turret = 0;
 
-        /* On screen, a 2% chance a frame once reloaded; two shells at most. */
+        /* Chasing and on screen: a 2% chance a frame once reloaded. */
         if (t->cooldown) {
             t->cooldown--;
-        } else if (!safe && screen_x(tx) > -20 && screen_x(tx) < SCREEN_W + 20 - TANK_W && rng_range8(0, 99) < 2 &&
-                   ebullets_of(EB_FLAK) < TANK_SHELLS) {
+        } else if (z->mode == M_CHASE && screen_x(tx) > -20 && screen_x(tx) < SCREEN_W + 20 - TANK_W &&
+                   rng_range8(0, 99) < 2 && ebullets_of(EB_FLAK) < TANK_SHELLS) {
             tank_fire(t, ccx);
             t->cooldown = rng_range8(30, 59);
         }
@@ -326,9 +414,11 @@ void tanks_bomb(int16_t x)
         tank_t *t = &tanks[i];
         if (!t->active || abs(x - (FROM_SUB(t->x) + TANK_W / 2)) >= 20)
             continue;
-        /* Its zone builds another, which rolls out in a while. */
+        /* A wreck; its prison rebuilds it in a while, and rolls it out
+         * again when it is the nearest. */
         zone_tank_t *z = &zone[t->base][t->slot];
-        z->alive = z->awake = false;
+        z->state = T_WRECK;
+        z->awake = false;
         z->rebuild = TANK_REBUILD;
         t->active = false;
         add_score(200);
@@ -549,7 +639,7 @@ void enemies_render(void)
         }
         /* The sprite faces left with its gun raised forward; flip it to
          * aim right. Straight up uses the raised-gun frames. */
-        bool right = t->turret ? t->turret > 0 : t->dir > 0;
+        bool right = t->turret ? t->turret > 0 : zone[t->base][t->slot].dir > 0;
         uint8_t f = (t->turret ? 0 : 2) + ((t->anim >> 3) & 1);
         spr_place(SPR_TANK_START + i, XRAM_IMG_TANK + f * TANK_FRAME_BYTES, PAL_TANK, WH(TANK_W, TANK_H),
                   right ? OPT4_FLIP : OPT4, FROM_SUB(t->x) - cam, TANK_Y);
