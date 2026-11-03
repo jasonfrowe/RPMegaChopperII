@@ -237,13 +237,17 @@ sets each level's pace) keeps the rules above but swaps the enemies:
 - **Rocket turrets instead of the balloon.** One stands 260 px east of each
   prison and is manned once that prison is opened: a 32x24 launcher on a
   sandbag ring, its beacon blinking slowly. It aims its launcher low (35
-  degrees) or steep (65) at the chopper, holds fire for 90 frames each
-  time it comes into view, and fires only at a chopper in the air within
-  200 px across: its beacon blinks fast for 40 frames, then a rocket
-  leaves at 1.25 px/frame. For 90 frames the rocket steers for the
-  chopper's middle (changing speed by 1/16 px/frame each frame, at most
-  1.4 px/frame each way, so the chopper can outrun it), then flies
-  straight and burns out after 240 frames. At most two in the air; 150 to
+  degrees) or steep (65) at the chopper, and holds fire for 90 frames
+  each time it comes into view. Like level 1's jets, the launchers only
+  go for a chopper that stays up high, out of the jeeps' reach (its
+  middle more than 70 px above a jeep): after 60 frames up there a
+  warning, "MISSILE SITES HAVE YOU - GET LOW!", and after 120 frames
+  each launcher within 200 px across warms up, its beacon blinking fast
+  for 40 frames, and fires. Getting low before then calls it off. The
+  rocket leaves at 0.75 px/frame and steers for the chopper's middle for
+  120 frames (changing speed by 1/16 px/frame each frame, at most
+  0.8 px/frame each way, a third of the chopper's top speed), then flies
+  straight and burns out after 250 frames. At most two in the air; 150 to
   240 frames' reload. The cannon or any bomb wrecks a
   turret (250 points), rebuilt after 15 s; the cannon also shoots rockets
   down (50 points).

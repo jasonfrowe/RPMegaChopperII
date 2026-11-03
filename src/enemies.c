@@ -762,10 +762,12 @@ static bool jet_hit(int16_t x, int16_t y)
 /* --- Rocket turrets (level 2) --------------------------------------------- */
 /* One stands east of each prison, on the way home, and is manned once
  * that prison is opened. It turns its launcher to the chopper, holds fire
- * for a while each time it comes into view, then, with the chopper in
- * range and in the air, blinks its light and fires a rocket that homes on
- * the chopper for a moment. The cannon or a bomb wrecks it, and it is
- * rebuilt after a while. */
+ * for a while each time it comes into view, and only fires at a chopper
+ * flying above the jeeps' reach, as level 1's jets do: after a while up
+ * there a warning, and then the launchers in range warm up (the beacon
+ * blinks fast) and fire a slow rocket that homes on the chopper for a
+ * while. Dropping low before it fires calls it off. The cannon or a bomb
+ * wrecks a launcher, and it is rebuilt after a while. */
 #define TURRET_FROM_BASE 260  /* px east of its prison's door */
 #define TURRET_Y (GROUND_LINE - TURRET_H + 2)
 #define TURRET_WRECK 2        /* frame */
@@ -776,7 +778,8 @@ static bool jet_hit(int16_t x, int16_t y)
 #define TURRET_RELOAD_SPREAD 90
 #define TURRET_REBUILD (15 * 60)
 #define ROCKETS 2             /* in the air at once, from all of them */
-#define ROCKET_SPEED 20       /* subpixels per frame, at launch */
+#define TURRET_AIR_WAIT 120   /* frames up high before they fire; the warning at half that */
+#define TURRET_HIGH (JEEP_Y - JEEP_REACH) /* "up high": the chopper's middle above this row */
 
 typedef struct
 {
@@ -791,6 +794,7 @@ typedef struct
 
 static turret_t turrets[NUM_COMPOUNDS];
 static bool light_on = true;
+static uint16_t loiter_high; /* frames the chopper has been up high */
 
 static int16_t turret_x(uint8_t i) /* left edge */
 {
@@ -799,6 +803,7 @@ static int16_t turret_x(uint8_t i) /* left edge */
 
 static void turrets_init(void)
 {
+    loiter_high = 0;
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
         turrets[i].wreck = false;
         turrets[i].in_view = false;
@@ -811,13 +816,22 @@ static void turrets_init(void)
 
 /* Each aim (35 and 65 degrees): launch speeds, and where the tubes' mouths
  * are from the launcher's pivot, at (TURRET_W / 2 + 1, 13) in the sprite. */
-static const int8_t launch_vx[2] = {16, 8};
-static const int8_t launch_vy[2] = {-11, -18};
+static const int8_t launch_vx[2] = {10, 5};
+static const int8_t launch_vy[2] = {-7, -11};
 static const int8_t mouth_dx[2] = {14, 7};
 static const int8_t mouth_dy[2] = {-9, -14};
 
 static void update_turrets(int16_t ccx, int16_t ccy, bool safe)
 {
+    bool high = !safe && player_alive() && !chopper_is_landed && ccy < TURRET_HIGH && compounds_breached();
+    if (!high) {
+        loiter_high = 0;
+        radar_warned = false;
+    } else if (++loiter_high > TURRET_AIR_WAIT / 2 && !radar_warned) {
+        radar_warned = true;
+        msg_flash("MISSILE SITES HAVE YOU - GET LOW!", C_ORANGE, 120);
+    }
+    bool armed = loiter_high > TURRET_AIR_WAIT;
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
         turret_t *t = &turrets[i];
         if (t->wreck) {
@@ -839,6 +853,11 @@ static void update_turrets(int16_t ccx, int16_t ccy, bool safe)
         t->dir = dx > 0 ? 1 : -1;
         t->aim = up < ax ? 0 : 1;
         if (t->warn) {
+            if (!high) { /* got low in time */
+                t->warn = 0;
+                t->cooldown = 30;
+                continue;
+            }
             if (--t->warn)
                 continue;
             int16_t mx = tcx + 1 + t->dir * mouth_dx[t->aim];
@@ -852,8 +871,7 @@ static void update_turrets(int16_t ccx, int16_t ccy, bool safe)
             t->cooldown--;
             continue;
         }
-        if (!safe && player_alive() && !chopper_is_landed && ax < TURRET_RANGE && up > 0 &&
-            ebullets_of(EB_ROCKET) < ROCKETS)
+        if (armed && ax < TURRET_RANGE && up > 0 && ebullets_of(EB_ROCKET) < ROCKETS)
             t->warn = TURRET_WARN;
     }
 }
