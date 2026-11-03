@@ -53,7 +53,7 @@
 #define JET_TRIGGER 3         /* prisons opened (the original: 24 hostages out) */
 #define JET_WARN_TIME 90      /* frames of warning before a jet arrives */
 #define JET_GROUND_WAIT 120   /* frames landed before a bomber may come */
-#define JET_AIR_WAIT 120      /* frames up high before a fighter may come */
+#define JET_AIR_WAIT 180      /* frames up high before a fighter may come */
 #define JET_AIR_ZONE 85       /* "up high": chopper's top above this screen row */
 #define JET_SPEED TO_SUB(4)
 #define JET_CLIMB 2           /* px per frame, leaving */
