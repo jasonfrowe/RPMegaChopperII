@@ -230,8 +230,8 @@ sets each level's pace) keeps the rules above but swaps the enemies:
   post 140 px from its prison, on its side, and waits there, parked, until
   the chopper comes within 180 px. Then it chases (1.5 px/frame, never out
   of its zone), and goes back to its post 120 frames after losing it. They fire bursts of three machine-gun rounds, 5 frames apart,
-  straight at the chopper at 4 px/frame, which fly 36 frames (about
-  144 px), and only at a chopper within 110 px across and 120 px up. The
+  straight at the chopper at 4 px/frame, which fly 20 frames (80 px),
+  and only at a chopper within 70 px across and 70 px up. The
   cannon kills one (anywhere on it, low over the ground), and so does a
   deep bomb. 150 points.
 - **Rocket turrets instead of the balloon.** One stands 260 px east of each

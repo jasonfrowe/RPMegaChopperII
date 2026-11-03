@@ -50,8 +50,8 @@
 #define JEEP_SPEED 24         /* subpixels per frame, chasing: 1.5 px */
 #define JEEP_PATROL_SPEED 16  /* driving to its post */
 #define JEEP_POST 140         /* px either side of its prison it waits, parked */
-#define JEEP_FIRE_RANGE 110   /* px across from the chopper */
-#define JEEP_REACH 120        /* px up to the chopper's middle: its rounds go no further */
+#define JEEP_FIRE_RANGE 70    /* px across from the chopper */
+#define JEEP_REACH 70         /* px up to the chopper's middle: its rounds (MG_LIFE) go no further */
 #define JEEP_BURST 3          /* rounds a burst */
 #define JEEP_BURST_GAP 5      /* frames between them */
 #define JEEP_ROUND_SPEED 64   /* subpixels per frame */
