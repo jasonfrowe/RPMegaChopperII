@@ -779,7 +779,8 @@ static bool jet_hit(int16_t x, int16_t y)
 #define TURRET_REBUILD (15 * 60)
 #define ROCKETS 2             /* in the air at once, from all of them */
 #define TURRET_AIR_WAIT 120   /* frames up high before they fire; the warning at half that */
-#define TURRET_HIGH (JEEP_Y - JEEP_REACH) /* "up high": the chopper's middle above this row */
+#define TURRET_OVERLAP 24     /* px of the jeeps' reach the launchers cover too */
+#define TURRET_HIGH (JEEP_Y - JEEP_REACH + TURRET_OVERLAP) /* "up high": the chopper's middle above this row */
 
 typedef struct
 {
@@ -816,14 +817,28 @@ static void turrets_init(void)
 
 /* Each aim (35 and 65 degrees): launch speeds, and where the tubes' mouths
  * are from the launcher's pivot, at (TURRET_W / 2 + 1, 13) in the sprite. */
-static const int8_t launch_vx[2] = {10, 5};
-static const int8_t launch_vy[2] = {-7, -11};
+static const int8_t launch_vx[2] = {14, 7};
+static const int8_t launch_vy[2] = {-10, -15};
 static const int8_t mouth_dx[2] = {14, 7};
 static const int8_t mouth_dy[2] = {-9, -14};
 
+/* Is turret i on screen? */
+static bool turret_in_view(uint8_t i)
+{
+    int16_t sx = screen_x(turret_x(i));
+    return sx > -TURRET_W / 2 && sx < SCREEN_W - TURRET_W / 2;
+}
+
 static void update_turrets(int16_t ccx, int16_t ccy, bool safe)
 {
-    bool high = !safe && player_alive() && !chopper_is_landed && ccy < TURRET_HIGH && compounds_breached();
+    /* The clock only runs, and the warning only comes, while a manned,
+     * standing launcher on screen has the chopper in range. */
+    bool threat = false;
+    for (uint8_t i = 0; i < NUM_COMPOUNDS; i++)
+        if (opened[i] && !turrets[i].wreck && turret_in_view(i) &&
+            abs(ccx - (turret_x(i) + TURRET_W / 2)) < TURRET_RANGE)
+            threat = true;
+    bool high = threat && !safe && player_alive() && !chopper_is_landed && ccy < TURRET_HIGH;
     if (!high) {
         loiter_high = 0;
         radar_warned = false;
@@ -841,7 +856,7 @@ static void update_turrets(int16_t ccx, int16_t ccy, bool safe)
         }
         int16_t tx = turret_x(i);
         int16_t tcx = tx + TURRET_W / 2;
-        bool view = screen_x(tx) > -TURRET_W / 2 && screen_x(tx) < SCREEN_W - TURRET_W / 2;
+        bool view = turret_in_view(i);
         if (view && !t->in_view)
             t->cooldown = TURRET_FIRST_SHOT;
         t->in_view = view;

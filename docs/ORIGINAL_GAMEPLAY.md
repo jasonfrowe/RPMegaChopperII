@@ -208,8 +208,10 @@ turning, is the original's rule.)
   last prison and home, with the border further east; tanks never roll
   out east of the border.
 - **Blizzards** are new: now and then the far scenery whites out, snow
-  blows across, and gusts push the chopper sideways and, on another beat,
-  up and down.
+  blows across, and gusts push the chopper sideways (at full strength
+  10/16 px/frame, gusting to 20/16: half its top speed) and, on another
+  beat, up and down (up to 19/16 px/frame: holding *up* in the worst
+  downdraft only just climbs).
 - **The balloon at the border** backs off 80 px west before coming back,
   so it patrols along the line instead of hanging on it.
 - **Jets** wait until the third prison has been opened (not 24 hostages
@@ -239,15 +241,17 @@ sets each level's pace) keeps the rules above but swaps the enemies:
   sandbag ring, its beacon blinking slowly. It aims its launcher low (35
   degrees) or steep (65) at the chopper, and holds fire for 90 frames
   each time it comes into view. Like level 1's jets, the launchers only
-  go for a chopper that stays up high, out of the jeeps' reach (its
-  middle more than 100 px above a jeep): after 60 frames up there a
-  warning, "MISSILE SITES HAVE YOU - GET LOW!", and after 120 frames
-  each launcher within 200 px across warms up, its beacon blinking fast
-  for 40 frames, and fires. Getting low before then calls it off. The
-  rocket leaves at 0.75 px/frame and steers for the chopper's middle for
-  120 frames (changing speed by 1/16 px/frame each frame, at most
-  0.8 px/frame each way, a third of the chopper's top speed), then flies
-  straight and burns out after 250 frames. At most two in the air; 150 to
+  go for a chopper that stays up high, at the top of the jeeps' reach or
+  above (its middle more than 76 px above a jeep: the two overlap by
+  24 px), and only while a manned, standing launcher on screen has it
+  within 200 px across: after 60 frames like that a warning, "MISSILE
+  SITES HAVE YOU - GET LOW!", and after 120 frames each such launcher
+  warms up, its beacon blinking fast for 40 frames, and fires. Getting
+  low, or away from them, before then calls it off. The rocket leaves at
+  about 1 px/frame and steers for the chopper's middle for 120 frames
+  (changing speed by 1/16 px/frame each frame, at most 1.1 px/frame each
+  way, under half the chopper's top speed), then flies straight and
+  burns out after 250 frames. At most two in the air; 150 to
   240 frames' reload. The cannon or any bomb wrecks a
   turret (250 points), rebuilt after 15 s; the cannon also shoots rockets
   down (50 points).

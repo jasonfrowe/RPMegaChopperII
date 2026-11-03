@@ -18,9 +18,9 @@ enum
 };
 
 #define BUILD_STEP 12      /* frames per step of STORM_MAX while building or clearing */
-#define WIND_MAX 7         /* subpixels per frame at full strength, between gusts */
-#define LIFT_MAX 16        /* subpixels per frame of up- or downdraft at full strength:
-                            * holding up still climbs (20 - 16), letting go drops fast */
+#define WIND_MAX 10        /* subpixels per frame at full strength, between gusts */
+#define LIFT_MAX 19        /* subpixels per frame of up- or downdraft at full strength:
+                            * holding up only just climbs (20 - 19), letting go drops fast */
 
 static uint8_t phase;
 static uint16_t timer;
@@ -94,8 +94,8 @@ void weather_update(void)
     /* Gusts: the wind swells and drops over about two seconds. */
     gust++;
     uint8_t g = (gust & 0x40) ? 0x3F - (gust & 0x3F) : (gust & 0x3F); /* 0..63..0 */
-    /* At full strength 7 subpixels a frame, gusting to 14: about a quarter
-     * of the chopper's top speed at worst. */
+    /* At full strength 10 subpixels a frame, gusting to 20: half the
+     * chopper's top speed at worst. */
     int16_t w = (int16_t)storm * WIND_MAX * (64 + g) / (64 * STORM_MAX);
     wind = (int8_t)(wind_dir * w);
 

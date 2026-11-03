@@ -56,7 +56,7 @@ As pilot of the experimental **SuperChopper**, your mission is to:
   * A **mine blimp** drifts after you once 24 hostages are out. Shoot it down. It won't cross the border.
   * **Jets** come once the third prison is open. Sit on the ground more than 2 seconds and a bomber may come; stay up high more than 4 seconds and a fighter may. You get a warning: "JET INBOUND!" and a red reticle at the edge of the screen it will come from, at the height it will fly.
   * Nothing attacks near the **home base**, east of the border flag.
-  * **Blizzards** blow in from time to time: it gets hard to see, and the wind pushes you sideways, up to about a third of your top speed in the gusts. They pass in 20 seconds or so.
+  * **Blizzards** blow in from time to time: it gets hard to see, and the wind pushes you sideways, up to half your top speed in the gusts, and drafts push you up and down. They pass in 20 seconds or so.
   * If the chopper goes down, everyone aboard is lost.
 * **Sector 2, the lakes**: boreal forest and frozen lakes under the aurora, with different enemies:
   * **Jeeps** in place of tanks: each waits parked near its prison until it sees you, then gives chase, firing machine-gun bursts straight at you. Their rounds don't carry far, so climb. Strafe them with the cannon (nose down) or bomb them from high up.
