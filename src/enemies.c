@@ -49,7 +49,7 @@
 #define JEEP_Y (GROUND_LINE - JEEP_H + 2)
 #define JEEP_SPEED 24         /* subpixels per frame, chasing: 1.5 px */
 #define JEEP_PATROL_SPEED 16  /* driving to its post */
-#define JEEP_POST 140         /* px either side of its prison it waits, parked */
+#define JEEP_POST 170         /* px either side of its prison it waits, parked (clear of the launcher) */
 #define JEEP_FIRE_RANGE 100    /* px across from the chopper */
 #define JEEP_REACH 100         /* px up to the chopper's middle: its rounds (MG_LIFE) go no further */
 #define JEEP_BURST 3          /* rounds a burst */
@@ -768,7 +768,7 @@ static bool jet_hit(int16_t x, int16_t y)
  * blinks fast) and fire a slow rocket that homes on the chopper for a
  * while. Dropping low before it fires calls it off. The cannon or a bomb
  * wrecks a launcher, and it is rebuilt after a while. */
-#define TURRET_FROM_BASE 260  /* px east of its prison's door */
+#define TURRET_FROM_BASE 120  /* px east of its prison's door: just past the guard tower */
 #define TURRET_Y (GROUND_LINE - TURRET_H + 2)
 #define TURRET_WRECK 2        /* frame */
 #define TURRET_RANGE 200      /* px across to the chopper */
