@@ -151,6 +151,9 @@ down, of its middle), it stops, drops (starting at 1 px/frame, gravity
 
 ## Where the sequel departs on purpose
 
+(The turn button working in the air only, and nothing else new about
+turning, is the original's rule.)
+
 - **Waiting spots:** the original sends each hostage to one of four spots
   near its prison by slot number, so they still bunch at the door. The
   sequel gives each of the 16 its own spot, 12 px apart on both sides of
@@ -158,8 +161,6 @@ down, of its middle), it stops, drops (starting at 1 px/frame, gravity
   prison and the doorway stays clear.
 - **Keeping apart:** a hostage walking straight at another doesn't make it
   stop, so two can't freeze face to face.
-- **Leaving tanks** go back to their garage only once off screen, rather
-  than vanishing in view.
 - **Bombs open prisons** too, and the cannon still does.
 - **Tank shells** use the same five angles but slower, so the steepest
   climbs 100 px instead of 144 (to about screen row 90): the sequel's sky
@@ -171,17 +172,26 @@ down, of its middle), it stops, drops (starting at 1 px/frame, gravity
   halfway between the last prison and home.
 - **The balloon** is a motorised barrage blimp (32x32) with a mine below
   it, facing the way it moves; its hit boxes are a little wider to match.
-- **Pacing:** tanks roll out 480 px from their prison (not 320), 240
-  frames apart (not 60), and hold fire 90 frames after arriving (not 20);
-  a prison that has just become the nearest waits 360 frames before it
-  sends any. The balloon waits for 24 hostages out (not 16) and appears
-  128 px off screen (not 64).
+- **Tanks guard every zone:** each prison has two tanks, tracked all the
+  time wherever they are, alive or not. The two nearest the chopper (within
+  520 px) come to life, only while out of sight, and go back to waiting
+  when far off and out of sight. So flying home from a far prison you pass
+  each zone's tanks, which the original's nearest-prison garages didn't
+  quite do. They start 300 px either side of their prison and drive in,
+  which gives you a few seconds at a prison you've just reached; a
+  destroyed one is rebuilt after 300 frames and rolls in from there. They
+  hold fire for 90 frames after coming to life (20 in the original).
+- **The balloon** waits for 24 hostages out (not 16) and appears 128 px
+  off screen (not 64).
 - **Seeing the chopper:** a waiting hostage also comes when the chopper is
   low within 150 px of its own prison's door, not only of itself, so the
   ones waiting furthest out aren't left behind.
 - **A longer world:** 4,608 px rather than 4,096, the extra between the
   last prison and home, with the border further east; tanks never roll
   out east of the border.
+- **Blizzards** are new: now and then the far scenery whites out, snow
+  blows across, and gusts push the chopper sideways and, on another beat,
+  up and down.
 - **The balloon at the border** backs off 80 px west before coming back,
   so it patrols along the line instead of hanging on it.
 - **Jets** wait until the third prison has been opened (not 24 hostages

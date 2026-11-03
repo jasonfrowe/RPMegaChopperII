@@ -24,6 +24,7 @@ extern bool chopper_is_landed;
  * no damage, and a request to move the chopper to (warp_x, warp_y). */
 extern volatile bool chopper_invulnerable;
 extern volatile int16_t debug_warp_x, debug_warp_y;
+extern volatile uint8_t debug_kill; /* set: the chopper is shot down */
 
 void player_init(void);
 void player_update(void);

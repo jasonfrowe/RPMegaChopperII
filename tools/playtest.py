@@ -147,14 +147,14 @@ BUILTIN = {
         + "".join(f"run 60\nshot \"{{out}}/a3_ground_{k}.png\"\n" for k in range(8))
         + "dump {test_stats} 10\n"
     ),
-    # Free a prison so the enemy turns up, then keep putting the chopper
-    # back among them, unprotected, until the last one is lost.
+    # Free a prison, load up, then lose all three choppers (shot down by
+    # the test) and check the game ends.
     "gameover": (
         "run 30\npress z\nrun 2\nrelease z\nrun 30\npoke {chopper_invulnerable} 1\n"
         + place(EAST_DOOR + 84, 172)
         + "press a\nrun 2\nrelease a\nrun 4\npress z\nrun 30\nrelease z\n"
         "press s\nrun 30\nrelease s\nrun 600\npoke {chopper_invulnerable} 0\n"
-        + "".join(place(EAST_DOOR + 84, 150) + "run 500\n" for _ in range(8))
+        + "".join(place(EAST_DOOR + 84, 160) + "run 200\npoke {debug_kill} 1\nrun 240\n" for _ in range(3))
         + "shot \"{out}/gameover.png\"\ndump {test_stats} 10\n"
     ),
     "soak": (

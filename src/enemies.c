@@ -15,19 +15,18 @@
  * Heights "above landed height" are measured up from GROUND_Y. */
 
 /* --- Tanks ---------------------------------------------------------------- */
-#define TANKS_ACTIVE 2
-#define TANKS_PER_BASE 2
+#define TANKS_ACTIVE 2        /* on the go at once, out of all the zones' */
+#define TANKS_PER_BASE 2      /* each prison's zone: one west of it, one east */
 #define TANK_TRIGGER 4        /* hostages aboard or saved before any tanks */
-#define TANK_SPAWN_DIST 480   /* px from the prison they roll out at (320 in the original) */
-#define TANK_OFFSCREEN 32     /* px off screen the spawn point must be */
-#define TANK_SPAWN_GAP 240    /* frames between tanks rolling out (60 in the original) */
-#define TANK_GRACE 360        /* frames a prison waits once it becomes the nearest */
+#define TANK_START_DIST 300   /* px from the prison a zone's tanks start, and rebuilt ones roll in */
+#define TANK_RANGE 520        /* px from the chopper within which a zone tank comes to life */
+#define TANK_OFFSCREEN 16     /* px off screen it must be to appear or go dormant */
 #define TANK_LEASH 100        /* px from the prison */
 #define TANK_RESUME 12        /* px the chopper must move off before a parked tank follows */
 #define TANK_SPACING 45       /* px behind another tank */
 #define TANK_SPEED ONE_PIXEL
-#define TANK_REBUILD 300      /* frames a prison waits after losing a tank */
-#define TANK_FIRST_SHOT 90    /* frames before a new tank fires (20 in the original) */
+#define TANK_REBUILD 300      /* frames before a destroyed tank's replacement rolls out */
+#define TANK_FIRST_SHOT 90    /* frames before a tank that comes to life fires (20 in the original) */
 #define TANK_SHELLS 2         /* in the air at once */
 
 /* --- Balloon -------------------------------------------------------------- */
@@ -64,7 +63,20 @@ typedef struct
     uint8_t cooldown;
     uint8_t anim;
     int8_t turret; /* -1 up-left, 0 up, 1 up-right */
+    uint8_t slot;  /* which of its zone's tanks it is */
 } tank_t;
+
+/* Every prison's tanks, all the time: where each is, and whether it is
+ * alive. Only TANKS_ACTIVE of them, the ones near the chopper, move and
+ * show; the rest wait where they were. */
+typedef struct
+{
+    bool alive;
+    bool awake; /* one of the active tanks just now */
+    int16_t x;
+    int8_t dir;
+    uint16_t rebuild;
+} zone_tank_t;
 
 typedef struct
 {
@@ -95,46 +107,31 @@ typedef struct
 } jet_t;
 
 static tank_t tanks[TANKS_ACTIVE];
-static uint8_t garage[NUM_COMPOUNDS];
-static uint16_t rebuild[NUM_COMPOUNDS];
+static zone_tank_t zone[NUM_COMPOUNDS][TANKS_PER_BASE];
 static bool tanks_triggered;
-static uint8_t tank_spawn_timer;
 static balloon_t balloon;
 static jet_t jet;
 static uint16_t loiter_ground, loiter_air;
-static uint8_t last_nearest;
 static bool radar_warned;
 
 void enemies_init(void)
 {
     for (uint8_t i = 0; i < TANKS_ACTIVE; i++)
         tanks[i].active = false;
-    for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
-        garage[i] = 0;
-        rebuild[i] = 0;
-    }
+    for (uint8_t b = 0; b < NUM_COMPOUNDS; b++)
+        for (uint8_t k = 0; k < TANKS_PER_BASE; k++)
+            zone[b][k].alive = zone[b][k].awake = false;
     tanks_triggered = false;
-    tank_spawn_timer = 0;
     balloon.active = false;
     balloon.respawn = 0;
     jet.state = JET_OFF;
     loiter_ground = loiter_air = 0;
-    last_nearest = 0xFF;
     radar_warned = false;
 }
 
 static int16_t base_x(uint8_t b)
 {
     return DOOR_X(b) + DOOR_W * 8;
-}
-
-static uint8_t nearest_base(int16_t x)
-{
-    uint8_t best = 0;
-    for (uint8_t i = 1; i < NUM_COMPOUNDS; i++)
-        if (abs(base_x(i) - x) < abs(base_x(best) - x))
-            best = i;
-    return best;
 }
 
 /* Is world x (an object w wide) at least `margin` px off screen? */
@@ -177,66 +174,98 @@ static void tank_fire(tank_t *t, int16_t ccx)
     sfx_enemy(SFX_TANK_FIRE, SFX_PRI_FIRE);
 }
 
+/* Where a zone's tank k starts, or rolls in from: west (k 0) or east of
+ * its prison, never on the home side of the border. */
+static int16_t zone_start(uint8_t b, uint8_t k)
+{
+    int16_t x = (k ? base_x(b) + TANK_START_DIST : base_x(b) - TANK_START_DIST) - TANK_W / 2;
+    if (x < 0)
+        x = 0;
+    if (x > SAFE_LINE - TANK_W - 8)
+        x = SAFE_LINE - TANK_W - 8;
+    return x;
+}
+
+/* Put an active tank back into its zone, where it is, to wait. */
+static void tank_sleep(tank_t *t)
+{
+    zone_tank_t *z = &zone[t->base][t->slot];
+    z->x = FROM_SUB(t->x);
+    z->dir = t->dir;
+    z->awake = false;
+    t->active = false;
+}
+
 static void update_tanks(int16_t ccx, bool safe)
 {
-    for (uint8_t i = 0; i < NUM_COMPOUNDS; i++)
-        if (rebuild[i])
-            rebuild[i]--;
-
-    /* Once 4 hostages are aboard or saved, every garage gets two. */
+    /* Once 4 hostages are aboard or saved, every prison gets its two. */
     if (!tanks_triggered && saved_count + cargo_count >= TANK_TRIGGER) {
         tanks_triggered = true;
-        for (uint8_t i = 0; i < NUM_COMPOUNDS; i++)
-            garage[i] = TANKS_PER_BASE;
+        for (uint8_t b = 0; b < NUM_COMPOUNDS; b++)
+            for (uint8_t k = 0; k < TANKS_PER_BASE; k++) {
+                zone_tank_t *z = &zone[b][k];
+                z->alive = true;
+                z->awake = false;
+                z->x = zone_start(b, k);
+                z->dir = k ? -1 : 1;
+            }
     }
-    uint8_t b = nearest_base(ccx);
-    /* A prison that has just become the nearest gives the chopper a while
-     * before it sends anything, so there is time to start the rescue. */
-    if (b != last_nearest) {
-        last_nearest = b;
-        bool out = false;
-        for (uint8_t i = 0; i < TANKS_ACTIVE; i++)
-            out |= tanks[i].active && tanks[i].base == b;
-        if (!out && rebuild[b] < TANK_GRACE)
-            rebuild[b] = TANK_GRACE;
-    }
+    if (!tanks_triggered)
+        return;
 
-    /* The nearest prison rolls one out: on its left if it has none there,
-     * else on its right, and only out of sight. */
-    if (tank_spawn_timer)
-        tank_spawn_timer--;
-    if (tanks_triggered && !safe && garage[b] && !rebuild[b] && !tank_spawn_timer) {
-        bool left = false, right = false;
-        tank_t *slot = 0;
-        for (uint8_t i = 0; i < TANKS_ACTIVE; i++) {
-            if (!tanks[i].active) {
-                if (!slot)
-                    slot = &tanks[i];
-            } else if (tanks[i].base == b) {
-                if (FROM_SUB(tanks[i].x) < base_x(b))
-                    left = true;
-                else
-                    right = true;
-            }
-        }
-        if (slot && (!left || !right)) {
-            int16_t x = (!left ? base_x(b) - TANK_SPAWN_DIST : base_x(b) + TANK_SPAWN_DIST) - TANK_W / 2;
-            if (x < 0)
-                x = 0;
-            if (x > SAFE_LINE - TANK_W - 8)
-                x = SAFE_LINE - TANK_W - 8; /* never on the home side of the border */
+    /* Destroyed ones are rebuilt, and roll in from their start, out of sight. */
+    for (uint8_t b = 0; b < NUM_COMPOUNDS; b++)
+        for (uint8_t k = 0; k < TANKS_PER_BASE; k++) {
+            zone_tank_t *z = &zone[b][k];
+            if (z->alive || (z->rebuild && --z->rebuild))
+                continue;
+            int16_t x = zone_start(b, k);
             if (offscreen(x, TANK_W, TANK_OFFSCREEN)) {
-                slot->active = true;
-                slot->base = b;
-                slot->x = TO_SUB(x);
-                slot->dir = !left ? 1 : -1;
-                slot->cooldown = TANK_FIRST_SHOT;
-                slot->anim = 0;
-                slot->turret = 0;
-                garage[b]--;
-                tank_spawn_timer = TANK_SPAWN_GAP;
+                z->alive = true;
+                z->x = x;
+                z->dir = k ? -1 : 1;
             }
         }
+
+    /* Active tanks that are far off and out of sight go back to waiting. */
+    for (uint8_t i = 0; i < TANKS_ACTIVE; i++) {
+        tank_t *t = &tanks[i];
+        int16_t tx = FROM_SUB(t->x);
+        if (t->active && abs(tx + TANK_W / 2 - ccx) > TANK_RANGE + 64 && offscreen(tx, TANK_W, TANK_OFFSCREEN))
+            tank_sleep(t);
+    }
+    /* The nearest waiting tank within range, out of sight, takes a free
+     * slot. (Never in view, so none appears out of nowhere.) */
+    for (uint8_t i = 0; i < TANKS_ACTIVE; i++) {
+        tank_t *t = &tanks[i];
+        if (t->active)
+            continue;
+        zone_tank_t *best = 0;
+        uint8_t bb = 0, bk = 0;
+        int16_t bd = TANK_RANGE;
+        for (uint8_t b = 0; b < NUM_COMPOUNDS; b++)
+            for (uint8_t k = 0; k < TANKS_PER_BASE; k++) {
+                zone_tank_t *z = &zone[b][k];
+                int16_t d = abs(z->x + TANK_W / 2 - ccx);
+                if (z->alive && !z->awake && d < bd && offscreen(z->x, TANK_W, TANK_OFFSCREEN)) {
+                    best = z;
+                    bd = d;
+                    bb = b;
+                    bk = k;
+                }
+            }
+        if (!best)
+            break;
+        best->awake = true;
+        t->active = true;
+        t->base = bb;
+        t->slot = bk;
+        t->x = TO_SUB(best->x);
+        t->dir = best->dir;
+        t->moving = true;
+        t->cooldown = TANK_FIRST_SHOT;
+        t->anim = 0;
+        t->turret = 0;
     }
 
     for (uint8_t i = 0; i < TANKS_ACTIVE; i++) {
@@ -244,13 +273,6 @@ static void update_tanks(int16_t ccx, bool safe)
         if (!t->active)
             continue;
         int16_t tx = FROM_SUB(t->x);
-        /* Another prison is nearest now: home to the garage (once out of
-         * sight, so it doesn't vanish in view). */
-        if (t->base != b && offscreen(tx, TANK_W, 0)) {
-            t->active = false;
-            garage[t->base]++;
-            continue;
-        }
         int16_t tcx = tx + TANK_W / 2;
         int16_t from_base = tcx - base_x(t->base);
         int16_t to_chopper = ccx - tcx;
@@ -304,10 +326,11 @@ void tanks_bomb(int16_t x)
         tank_t *t = &tanks[i];
         if (!t->active || abs(x - (FROM_SUB(t->x) + TANK_W / 2)) >= 20)
             continue;
-        /* Back into its prison's garage; the prison waits a while. */
+        /* Its zone builds another, which rolls out in a while. */
+        zone_tank_t *z = &zone[t->base][t->slot];
+        z->alive = z->awake = false;
+        z->rebuild = TANK_REBUILD;
         t->active = false;
-        garage[t->base]++;
-        rebuild[t->base] = TANK_REBUILD;
         add_score(200);
         explosion_spawn(FROM_SUB(t->x) + TANK_W / 2, TANK_Y + 8, true);
         return;

@@ -11,8 +11,10 @@
 
 /* How bad it is now, 0 (calm) to STORM_MAX. */
 extern uint8_t storm;
-/* The wind's push this frame, subpixels per frame (+ blows east). */
+/* The wind's push this frame, subpixels per frame: across (+ blows east),
+ * and up or down (+ pushes down: a downdraft). */
 extern int8_t wind;
+extern int8_t lift;
 
 /* For test scripts: set to a strength (1..STORM_MAX) to start a storm now. */
 extern volatile uint8_t debug_storm;

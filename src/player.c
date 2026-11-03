@@ -18,6 +18,7 @@ player_status_t player_status;
 bool chopper_is_landed;
 volatile bool chopper_invulnerable;
 volatile int16_t debug_warp_x, debug_warp_y;
+volatile uint8_t debug_kill;
 
 static chopper_heading_t next_heading;
 static int8_t last_side; /* the side faced before turning to the front */
@@ -153,6 +154,11 @@ void player_update(void)
         return;
     }
 
+    if (debug_kill) {
+        debug_kill = 0;
+        player_kill();
+        return;
+    }
     if (debug_warp_x) {
         chopper_world_x = TO_SUB(debug_warp_x);
         chopper_y = TO_SUB(debug_warp_y);
@@ -161,8 +167,9 @@ void player_update(void)
     }
     chopper_is_landed = chopper_y >= GROUND_Y_SUB;
 
-    /* Turning: left -> front -> right and back, one step per press. */
-    if ((in_pressed & IN_ROTATE) && !is_turning) {
+    /* Turning: left -> front -> right and back, one step per press, in the
+     * air only, as in the original. */
+    if ((in_pressed & IN_ROTATE) && !is_turning && !chopper_is_landed) {
         if (chopper_heading != FACING_FRONT) {
             last_side = (int8_t)chopper_heading;
             next_heading = FACING_FRONT;
@@ -219,6 +226,8 @@ void player_update(void)
     else
         chopper_vel_y = chopper_is_landed ? 0 : GRAVITY_SPEED;
     chopper_y += chopper_vel_y;
+    if (!chopper_is_landed)
+        chopper_y += lift; /* and up and down */
     if (chopper_y < CEILING_Y_SUB)
         chopper_y = CEILING_Y_SUB;
     if (chopper_y >= GROUND_Y_SUB) {

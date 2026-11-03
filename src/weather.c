@@ -5,6 +5,7 @@
 
 uint8_t storm;
 int8_t wind;
+int8_t lift;
 volatile uint8_t debug_storm;
 
 enum
@@ -17,12 +18,15 @@ enum
 
 #define BUILD_STEP 12      /* frames per step of STORM_MAX while building or clearing */
 #define WIND_MAX 7         /* subpixels per frame at full strength, between gusts */
+#define LIFT_MAX 16        /* subpixels per frame of up- or downdraft at full strength:
+                            * holding up still climbs (20 - 16), letting go drops fast */
 
 static uint8_t phase;
 static uint16_t timer;
 static int8_t wind_dir;
 static uint8_t peak; /* how strong this sector's storms get */
 static uint8_t gust;
+static uint8_t draft;
 
 static uint16_t frames_between(uint16_t lo, uint16_t span)
 {
@@ -33,6 +37,7 @@ void weather_init(void)
 {
     storm = 0;
     wind = 0;
+    lift = 0;
     phase = W_CALM;
     timer = frames_between(60 * 60, 30 * 60); /* the first one after a minute or more */
     /* Milder in the first sectors. */
@@ -92,4 +97,13 @@ void weather_update(void)
      * of the chopper's top speed at worst. */
     int16_t w = (int16_t)storm * WIND_MAX * (64 + g) / (64 * STORM_MAX);
     wind = (int8_t)(wind_dir * w);
+
+    /* Up- and downdrafts swing on a different beat, about every 3 s, and
+     * jolt: the swing is squared so it lingers near the top and bottom.
+     * A downdraft is a little stronger than gravity and the climb together
+     * is weak, so in the worst of it the chopper fights to hold height. */
+    draft += 3;
+    int8_t tri = (int8_t)((draft & 0x80) ? 0xFF - draft : draft) - 64; /* -64..63 */
+    int16_t sq = (int16_t)tri * (tri < 0 ? -tri : tri) / 64;            /* -64..63, squared */
+    lift = (int8_t)((int16_t)storm * LIFT_MAX * sq / (64 * STORM_MAX));
 }
