@@ -32,7 +32,8 @@
 #define TANK_SPEED ONE_PIXEL  /* chasing, or driving back into its zone */
 #define TANK_PATROL_SPEED 8   /* subpixels per frame */
 #define TANK_REBUILD 300      /* frames before a prison can roll out a replacement */
-#define TANK_FIRST_SHOT 90    /* frames before a tank that wakes up fires (20 in the original) */
+#define TANK_FIRST_SHOT 90    /* frames a tank holds fire after coming into view (20 in the original) */
+#define TANK_FIRE_RANGE 120   /* px: it only fires at a chopper this close */
 #define TANK_SHELLS 3         /* in the air at once (2 in the original) */
 #define TANK_FIRE_CHANCE 4    /* percent a frame, once reloaded (2 in the original) */
 #define TANK_RELOAD_MIN 24    /* frames (30-59 in the original) */
@@ -102,6 +103,7 @@ typedef struct
     uint8_t cooldown;
     uint8_t anim;
     int8_t turret; /* -1 up-left, 0 up, 1 up-right */
+    bool in_view;  /* on screen: its hold on firing starts when it comes in */
 } tank_t;
 
 typedef struct
@@ -340,6 +342,7 @@ static void wake_and_sleep(int16_t ccx)
         t->slot = bk;
         t->x = TO_SUB(best->x);
         t->moving = true;
+        t->in_view = false;
         t->cooldown = TANK_FIRST_SHOT;
         t->anim = 0;
         t->turret = 0;
@@ -425,10 +428,15 @@ static void update_tanks(int16_t ccx, bool safe)
         else if (abs(to_chopper) < 16)
             t->turret = 0;
 
-        /* Chasing and on screen: a chance every frame once reloaded. */
+        /* It holds fire for a while each time it comes into view, so the
+         * player sees it coming, and then only fires when it is close. */
+        bool view = screen_x(tx) > -TANK_W / 2 && screen_x(tx) < SCREEN_W - TANK_W / 2;
+        if (view && !t->in_view)
+            t->cooldown = TANK_FIRST_SHOT;
+        t->in_view = view;
         if (t->cooldown) {
             t->cooldown--;
-        } else if (z->mode == M_CHASE && screen_x(tx) > -20 && screen_x(tx) < SCREEN_W + 20 - TANK_W &&
+        } else if (z->mode == M_CHASE && view && abs(to_chopper) < TANK_FIRE_RANGE &&
                    rng_range8(0, 99) < TANK_FIRE_CHANCE && ebullets_of(EB_FLAK) < TANK_SHELLS) {
             tank_fire(t, ccx);
             t->cooldown = TANK_RELOAD_MIN + rng_range8(0, TANK_RELOAD_SPREAD);

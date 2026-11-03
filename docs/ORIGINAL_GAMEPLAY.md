@@ -181,8 +181,10 @@ turning, is the original's rule.)
   a far prison you pass the tanks of every zone you have opened. Every
   prison's tanks are tracked; only the two nearest the chopper move and
   show, and they swap in and out only out of sight. A destroyed tank goes
-  back to its garage after 300 frames, to be rolled out again. They hold
-  fire 90 frames after appearing (20 in the original).
+  back to its garage after 300 frames, to be rolled out again. Each time a
+  tank comes into view it holds fire for 90 frames (20 in the original,
+  counted from rolling out), and it only fires at a chopper within 120 px
+  of it, so you see it coming and closing in before it shoots.
 - **Tank fire is aimed:** at each shot a tank flies eight launch angles (90
   down to 20 degrees, all one speed) in a quick simulation and takes the
   one that reaches the chopper's height closest to where the chopper will
