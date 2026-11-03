@@ -105,6 +105,12 @@ extern uint8_t frame_count;
 void rng_seed(uint16_t seed);
 uint16_t rng_next(void);
 uint8_t rng_range8(uint8_t min, uint8_t max);
+/* A coin toss, from the top bit (the low bits of the generator are the
+ * weakest, and the game draws numbers in the same order every frame). */
+static inline bool rng_coin(void)
+{
+    return rng_next() >> 15;
+}
 
 void add_score(uint16_t pts);
 void hiscore_load(void);

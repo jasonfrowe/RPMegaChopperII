@@ -33,7 +33,7 @@ static void respawn(flake_t *f, bool anywhere)
     f->x = (int16_t)(rng_next() % (SCREEN_W << 4));
     if (anywhere)
         f->y = (int16_t)(HUD_H * 16 + rng_next() % ((SCREEN_H - HUD_H) << 4));
-    else if (storm > 4 && (rng_next() & 1)) {
+    else if (storm > 4 && rng_coin()) {
         /* Blown in from the side the wind comes from. */
         f->x = wind > 0 ? -64 : (SCREEN_W << 4) - 1;
         f->y = (int16_t)(HUD_H * 16 + rng_next() % ((GROUND_LINE - HUD_H) << 4));

@@ -53,11 +53,18 @@ void rng_seed(uint16_t seed)
     lfsr_state = seed;
 }
 
+/* xorshift16 (7, 9, 8). The shift register this replaced handed out each
+ * number as the last one shifted right by a bit, so a value tested one
+ * way fixed the low bits of the next: a jet that had just passed its 2%
+ * roll always came from the right. */
 uint16_t rng_next(void)
 {
-    uint16_t bit = ((lfsr_state >> 0) ^ (lfsr_state >> 2) ^ (lfsr_state >> 3) ^ (lfsr_state >> 5)) & 1u;
-    lfsr_state = (lfsr_state >> 1) | (bit << 15);
-    return lfsr_state;
+    uint16_t x = lfsr_state;
+    x ^= x << 7;
+    x ^= x >> 9;
+    x ^= x << 8;
+    lfsr_state = x;
+    return x;
 }
 
 uint8_t rng_range8(uint8_t min, uint8_t max)

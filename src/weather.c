@@ -57,7 +57,7 @@ void weather_update(void)
         if (--timer == 0) {
             phase = W_BUILD;
             timer = BUILD_STEP;
-            wind_dir = (rng_next() & 1) ? 1 : -1;
+            wind_dir = rng_coin() ? 1 : -1;
             msg_flash(wind_dir > 0 ? "BLIZZARD! WIND FROM THE WEST" : "BLIZZARD! WIND FROM THE EAST", C_CYAN, 150);
             sfx_enemy(SFX_WARNING, SFX_PRI_EVENT);
         }

@@ -480,7 +480,7 @@ static void update_balloon(int16_t ccx, int16_t ccy)
         int16_t cam = FROM_SUB(camera_x);
         int16_t left = cam - BALLOON_OFFSCREEN - BALLOON_W, right = cam + SCREEN_W + BALLOON_OFFSCREEN;
         int16_t x;
-        if (rng_next() & 1)
+        if (rng_coin())
             x = right < SAFE_LINE ? right : left;
         else
             x = left > 0 ? left : right;
@@ -592,7 +592,7 @@ static void update_jet(int16_t ccx, bool safe)
         j->state = JET_WARN;
         j->timer = JET_WARN_TIME;
         j->bombs = 0;
-        j->dir = (rng_next() & 1) ? 1 : -1;
+        j->dir = rng_coin() ? 1 : -1;
         j->y = j->bomber ? GROUND_Y - JET_BOMBER_HEIGHT : FROM_SUB(chopper_y) + CHOPPER_H / 2 - JET_H / 2;
         msg_flash("JET INBOUND!", C_RED, JET_WARN_TIME);
         sfx_enemy(SFX_WARNING, SFX_PRI_EVENT);
