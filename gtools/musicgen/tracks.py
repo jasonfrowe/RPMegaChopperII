@@ -79,9 +79,10 @@ TRACKS: list = [
     ),
     TrackSpec(
         resource="Stage2",
-        description="Stage 2, Neon Spires",
+        description="Stage 2, The Lakes",
         aliases=["stage2", "level2"],
-        mood=MoodPreset(key_root=4, scale="minor", bpm=150, intensity=0.75, target_seconds=150.0, lead_octave=5),
+        # Brooding and quick: forest at night, the aurora on the water.
+        mood=MoodPreset(key_root=4, scale="minor", bpm=150, intensity=0.70, target_seconds=150.0, lead_octave=5),
     ),
     TrackSpec(
         resource="Stage3",

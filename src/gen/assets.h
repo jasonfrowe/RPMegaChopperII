@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-/* Palettes, in XRAM order. */
+/* Palettes, in XRAM order. Each level's bank brings its own set. */
 #define PAL_CHOPPER 0
 #define PAL_HOSTAGE 1
 #define PAL_TANK 2
@@ -20,17 +20,22 @@
 #define PAL_HUD 12
 #define PAL_LOGO 13
 #define PAL_COUNT 14
+/* Level 2's enemies use level 1's enemy slots. */
+#define PAL_JEEP PAL_TANK
+#define PAL_TURRET PAL_BALLOON
+#define PAL_WORM PAL_JET
 #define FAR_AURORA_FIRST 8 /* five entries the game rotates */
 #define MID_BEACON_INDEX 11
-#define FG_LAMP_INDEX 15
 #define AURORA_WAVE_N 10
-static const uint16_t aurora_wave[AURORA_WAVE_N] = {
-    0x39E1, 0x52E2, 0x6423, 0x7DA6, 0x96EA, 0xC7F2, 0xA72B, 0x85E6, 0x6C64, 0x5322,
+
+/* The levels, each a bank in ROM: ROM:level<N>.bin. */
+#define LEVEL_BANKS 2
+static const uint16_t aurora_waves[LEVEL_BANKS][AURORA_WAVE_N] = {
+    {0x39E1, 0x52E2, 0x6423, 0x7DA6, 0x96EA, 0xC7F2, 0xA72B, 0x85E6, 0x6C64, 0x5322},
+    {0x40A4, 0x7928, 0xA1EC, 0x8466, 0x96A8, 0xD7F5, 0xAF2C, 0x8D67, 0xA22B, 0x60E6},
 };
-#define MID_BEACON_ON 0x297C
+static const uint16_t mid_beacon_on[LEVEL_BANKS] = {0x297C, 0x297C};
 #define MID_BEACON_OFF 0x1068
-#define FG_LAMP_ON 0xB77F
-#define FG_LAMP_OFF 0x3BF2
 
 /* Sprite sheets: frame size, frame count, bytes per frame (4bpp). */
 #define CHOPPER_W 40
@@ -41,18 +46,6 @@ static const uint16_t aurora_wave[AURORA_WAVE_N] = {
 #define HOSTAGES_H 16
 #define HOSTAGES_FRAMES 7
 #define HOSTAGES_FRAME_BYTES 128
-#define TANK_W 40
-#define TANK_H 20
-#define TANK_FRAMES 4
-#define TANK_FRAME_BYTES 400
-#define JET_W 40
-#define JET_H 16
-#define JET_FRAMES 2
-#define JET_FRAME_BYTES 320
-#define BALLOON_W 32
-#define BALLOON_H 32
-#define BALLOON_FRAMES 3
-#define BALLOON_FRAME_BYTES 512
 #define BOMB_W 8
 #define BOMB_H 8
 #define BOMB_FRAMES 2
@@ -91,7 +84,53 @@ static const uint16_t aurora_wave[AURORA_WAVE_N] = {
 #define LOGO_PIECES 4
 #define LOGO_PIECE_BYTES 192 /* 1 bit per pixel */
 
-/* Tile layers. */
+/* Each level's enemies share one region of XRAM, filled from its bank:
+ * <NAME>_OFS is where a sheet starts in it. */
+#define ENEMY_IMG_BYTES 3776
+/* Level 1 */
+#define TANK_W 40
+#define TANK_H 20
+#define TANK_FRAMES 4
+#define TANK_FRAME_BYTES 400
+#define TANK_OFS 0
+#define JET_W 40
+#define JET_H 16
+#define JET_FRAMES 2
+#define JET_FRAME_BYTES 320
+#define JET_OFS 1600
+#define BALLOON_W 32
+#define BALLOON_H 32
+#define BALLOON_FRAMES 3
+#define BALLOON_FRAME_BYTES 512
+#define BALLOON_OFS 2240
+/* Level 2 */
+#define JEEP_W 32
+#define JEEP_H 16
+#define JEEP_FRAMES 4
+#define JEEP_FRAME_BYTES 256
+#define JEEP_OFS 0
+#define TURRET_W 24
+#define TURRET_H 20
+#define TURRET_FRAMES 4
+#define TURRET_FRAME_BYTES 240
+#define TURRET_OFS 1024
+#define ROCKET_W 12
+#define ROCKET_H 12
+#define ROCKET_FRAMES 5
+#define ROCKET_FRAME_BYTES 72
+#define ROCKET_OFS 1984
+#define WORM_W 24
+#define WORM_H 32
+#define WORM_FRAMES 3
+#define WORM_FRAME_BYTES 384
+#define WORM_OFS 2344
+#define MOUND_W 32
+#define MOUND_H 8
+#define MOUND_FRAMES 2
+#define MOUND_FRAME_BYTES 128
+#define MOUND_OFS 3496
+
+/* Tile layers: room for this many tiles, whatever a level uses. */
 #define FAR_TILE 8
 #define FAR_TILES 216
 #define FAR_TILE_BYTES 32
@@ -111,9 +150,9 @@ static const uint16_t aurora_wave[AURORA_WAVE_N] = {
 #define FG_MAP_ROWS 9
 #define FG_Y 96
 
-/* The world. */
+/* The world, the same in every level. */
 #define WORLD_W_PX 4608
-#define GROUND_LINE 208 /* screen row of the snow's surface */
+#define GROUND_LINE 208 /* screen row of the ground's surface */
 #define NUM_COMPOUNDS 4
 static const uint8_t compound_cols[NUM_COMPOUNDS] = {16, 72, 136, 192};
 #define DOOR_COL 5
@@ -127,19 +166,17 @@ static const uint8_t compound_cols[NUM_COMPOUNDS] = {16, 72, 136, 192};
 #define BORDER_X 3812 /* the border flag; the enemy stays west of it */
 #define BORDER_FLAG_X 3813
 
-/* The door's tiles (and the row above it, with the warning lamp),
- * top row first: as built, and blown open. */
+/* The door's tiles in each level (and the row above it, with the
+ * warning lamp), top row first: as built, and blown open. */
 #define DOOR_TILE_ROWS 3
-static const uint8_t door_intact[DOOR_TILE_ROWS][DOOR_W] = {
-    {37, 38},
-    {67, 68},
-    {103, 104},
-};
-static const uint8_t door_breached[DOOR_TILE_ROWS][DOOR_W] = {
-    {186, 187},
-    {188, 189},
-    {190, 191},
-};
 #define DOOR_TILE_ROW0 4 /* fg map row of the top of that */
+static const uint8_t door_intact[LEVEL_BANKS][DOOR_TILE_ROWS][DOOR_W] = {
+    {{37, 38}, {67, 68}, {103, 104}},
+    {{40, 41}, {70, 71}, {106, 107}},
+};
+static const uint8_t door_breached[LEVEL_BANKS][DOOR_TILE_ROWS][DOOR_W] = {
+    {{186, 187}, {188, 189}, {190, 191}},
+    {{186, 187}, {188, 189}, {190, 191}},
+};
 
 #endif /* ASSETS_H */

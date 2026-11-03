@@ -219,3 +219,38 @@ turning, is the original's rule.)
   when it sets off, so dropping away dodges it).
 - **Sizes:** the sequel's chopper is 40x20, its tank 40x20, its jet 40x16,
   its balloon 16x32; distances "from the middle" use those.
+
+## Level 2, the lakes: new enemies
+
+The original had one level. The sequel's second sector (`src/level.c`
+sets each level's pace) keeps the rules above but swaps the enemies:
+
+- **Jeeps instead of tanks.** The same zones, schedule (7, 5, 4 and 4 s
+  after each prison is opened) and patrols, at twice the speed (2 px/frame
+  chasing). They fire bursts of three machine-gun rounds, 5 frames apart,
+  straight at the chopper at 4 px/frame, which fly 36 frames (about
+  144 px), and only at a chopper within 110 px across and 120 px up. The
+  cannon kills one (anywhere on it, low over the ground), and so does a
+  deep bomb. 150 points.
+- **Rocket turrets instead of the balloon.** One stands 260 px east of each
+  prison and is manned once that prison is opened. It aims its launcher
+  low, steep or straight up at the chopper, holds fire for 90 frames each
+  time it comes into view, and fires only at a chopper in the air within
+  200 px across: its light blinks for 40 frames, then a rocket leaves at
+  2.5 px/frame. For 60 frames the rocket steers for the chopper's middle
+  (changing speed by 1/8 px/frame each frame, at most 2.5 px/frame each
+  way), then flies straight and burns out after 150 frames. At most two
+  in the air; 150 to 240 frames' reload. The cannon or any bomb wrecks a
+  turret (250 points), rebuilt after 15 s; the cannon also shoots rockets
+  down (50 points).
+- **Worms instead of jets**, once two prisons are open. Landed away from
+  home more than 90 frames, a 2% chance a frame that a worm starts
+  tunnelling 150 px off, at 1.25 px/frame; it gives up after 240 frames.
+  When it gets under the chopper's middle it bursts up for 56 frames and
+  takes a chopper within 16 px that is low enough. Any bomb on its ridge,
+  or the cannon while it is up, kills it (300 points).
+- **Prisons roll vehicles out east** when the spot to the west is in view
+  (the original waited), on both levels.
+- **Going round again**: after level 2 the game goes back to level 1,
+  harder each time round: vehicles about a second sooner, jets or worms
+  a prison earlier, storms at full strength.

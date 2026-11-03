@@ -1,5 +1,6 @@
 #include "game.h"
 #include "hud.h"
+#include "level.h"
 #include "sfx.h"
 #include "weather.h"
 
@@ -41,7 +42,7 @@ void weather_init(void)
     phase = W_CALM;
     timer = frames_between(60 * 60, 30 * 60); /* the first one after a minute or more */
     /* Milder in the first sectors. */
-    peak = current_level >= 3 ? STORM_MAX : (current_level == 2 ? 13 : 10);
+    peak = level->storm_peak;
 }
 
 void weather_update(void)

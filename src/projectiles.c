@@ -132,6 +132,25 @@ void small_explosion_spawn(int16_t cx, int16_t cy)
     boom(pops, SPR_SMALLEXP_COUNT, cx - 8, cy - 8);
 }
 
+/* A cannon shot can bring down a rocket. */
+static bool rocket_shot(int16_t x, int16_t y)
+{
+    for (uint8_t i = 0; i < SPR_EBULLET_COUNT; i++) {
+        shot_t *b = &ebullets[i];
+        if (b->active && b->kind == EB_ROCKET && abs(FROM_SUB(b->x) - x) < 7 && abs(FROM_SUB(b->y) - y) < 7) {
+            b->active = false;
+            add_score(50);
+            return true;
+        }
+    }
+    return false;
+}
+
+static int16_t clamp_speed(int16_t v)
+{
+    return v > ROCKET_MAX ? ROCKET_MAX : (v < -ROCKET_MAX ? -ROCKET_MAX : v);
+}
+
 void projectiles_update(void)
 {
     int16_t cam = FROM_SUB(camera_x);
@@ -153,8 +172,8 @@ void projectiles_update(void)
             continue;
         }
         /* The cannon passes over tanks: only bombs hurt them. */
-        if (compounds_check_hit(x, y, false) || balloons_check_hit(x, y) ||
-            jets_check_hit(x, y) || hostages_check_hit(x, y)) {
+        if (compounds_check_hit(x, y, false) || enemies_check_hit(x, y) || rocket_shot(x, y) ||
+            hostages_check_hit(x, y)) {
             b->active = false;
             small_explosion_spawn(x, y);
         }
@@ -171,8 +190,7 @@ void projectiles_update(void)
             small_explosion_spawn(x, b->vx);
             sfx_enemy(SFX_EXPLODE, SFX_PRI_DESTROY);
             compounds_check_hit(x, b->vx, true);
-            if (b->vx == BOMB_DEEP_Y)
-                tanks_bomb(x);
+            enemies_bomb(x, b->vx == BOMB_DEEP_Y);
         }
     }
 
@@ -182,11 +200,33 @@ void projectiles_update(void)
             continue;
         b->x += b->vx;
         b->y += b->vy;
-        if (b->kind == EB_FLAK)
+        if (b->age < 255)
+            b->age++;
+        if (b->kind == EB_FLAK) {
             b->vy += FLAK_GRAVITY;
-        else if (b->kind == EB_BOMB)
+        } else if (b->kind == EB_BOMB) {
             b->vy += JET_BOMB_GRAVITY;
-        int16_t x = FROM_SUB(b->x) + 4, y = FROM_SUB(b->y) + (b->kind == EB_BOMB ? 6 : 2);
+        } else if (b->kind == EB_MG && b->age > MG_LIFE) {
+            b->active = false;
+            continue;
+        } else if (b->kind == EB_ROCKET) {
+            /* x, y are its middle. It steers for the chopper's middle for
+             * a moment, then flies on as it is pointing, and burns out. */
+            if (b->age > ROCKET_LIFE) {
+                b->active = false;
+                small_explosion_spawn(FROM_SUB(b->x), FROM_SUB(b->y));
+                continue;
+            }
+            if (b->age < ROCKET_HOME && player_alive()) {
+                int16_t dx = chopper_cx() - FROM_SUB(b->x);
+                int16_t dy = FROM_SUB(chopper_y) + CHOPPER_H / 2 - FROM_SUB(b->y);
+                b->vx = clamp_speed(b->vx + (dx > 0 ? ROCKET_TURN : -ROCKET_TURN));
+                b->vy = clamp_speed(b->vy + (dy > 0 ? ROCKET_TURN : -ROCKET_TURN));
+            }
+        }
+        bool middle = b->kind == EB_ROCKET;
+        int16_t x = FROM_SUB(b->x) + (middle ? 0 : 4);
+        int16_t y = FROM_SUB(b->y) + (middle ? 0 : (b->kind == EB_BOMB ? 6 : 2));
         if (x < cam - 32 || x > cam + SCREEN_W + 32 || y < HUD_H - 8) {
             b->active = false;
             continue;
@@ -210,7 +250,7 @@ void projectiles_update(void)
         if (player_alive() && abs(x - chopper_cx()) < (flak ? 12 : 10) &&
             abs(y - (FROM_SUB(chopper_y) + CHOPPER_H / 2)) < (flak ? 8 : 10)) {
             b->active = false;
-            explosion_spawn(x, y, b->kind == EB_BOMB);
+            explosion_spawn(x, y, b->kind == EB_BOMB || b->kind == EB_ROCKET);
             player_kill();
             continue;
         }
@@ -260,7 +300,16 @@ void projectiles_render(void)
     }
     for (uint8_t i = 0; i < SPR_EBULLET_COUNT; i++) {
         shot_t *b = &ebullets[i];
-        if (b->active && b->kind == EB_BOMB)
+        if (b->active && b->kind == EB_ROCKET) {
+            /* The sheet points left, then 22.5 degrees at a time up to
+             * straight up; flipped for the rest. */
+            int16_t ax = abs(b->vx), ay = abs(b->vy);
+            uint8_t f = ay * 5 < ax ? 0 : (ay * 3 < ax * 2 ? 1 : (ay * 2 < ax * 3 ? 2 : (ay < ax * 5 ? 3 : 4)));
+            uint8_t opt = OPT4 | (b->vx > 0 ? MODE5_HFLIP : 0) | (b->vy > 0 ? MODE5_VFLIP : 0);
+            spr_place(SPR_EBULLET_START + i, XRAM_IMG_ROCKET + f * ROCKET_FRAME_BYTES, PAL_TURRET,
+                      WH(ROCKET_W, ROCKET_H), opt, FROM_SUB(b->x) - ROCKET_W / 2 - cam,
+                      FROM_SUB(b->y) - ROCKET_H / 2);
+        } else if (b->active && b->kind == EB_BOMB)
             spr_place(SPR_EBULLET_START + i, XRAM_IMG_BOMB + ((frame_count >> 2) & 1) * BOMB_FRAME_BYTES, PAL_FX,
                       WH(8, 8), OPT4, FROM_SUB(b->x) - cam, FROM_SUB(b->y));
         else if (b->active)

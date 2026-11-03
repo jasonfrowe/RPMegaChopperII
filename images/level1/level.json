@@ -1,0 +1,62 @@
+{
+ "items": [
+  {
+   "png": "images/level1/tank.png",
+   "w": 40,
+   "h": 20,
+   "size": 1600
+  },
+  {
+   "png": "images/level1/jet.png",
+   "w": 40,
+   "h": 16,
+   "size": 640
+  },
+  {
+   "png": "images/level1/balloon.png",
+   "w": 32,
+   "h": 32,
+   "size": 1536
+  },
+  {
+   "pad": 0
+  },
+  {
+   "png": "images/level1/far_tiles.png",
+   "w": 8,
+   "h": 8,
+   "max": 6912,
+   "size": 6912
+  },
+  {
+   "png": "images/level1/mid_tiles.png",
+   "w": 8,
+   "h": 8,
+   "max": 7168,
+   "size": 7168
+  },
+  {
+   "png": "images/level1/fg_tiles.png",
+   "w": 16,
+   "h": 16,
+   "max": 24576,
+   "size": 24576
+  },
+  {
+   "bin": "images/level1/far_map.bin",
+   "size": 1600
+  },
+  {
+   "bin": "images/level1/mid_map.bin",
+   "size": 1536
+  },
+  {
+   "bin": "images/level1/fg_map.bin",
+   "size": 2592
+  },
+  {
+   "bin": "images/level1/palettes.bin",
+   "size": 448
+  }
+ ]
+}

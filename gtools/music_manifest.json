@@ -75,29 +75,30 @@
     "command": ".venv/bin/python gtools/generate_music.py --track boss --seed 3141 --style 9 --vol 0,0,0,0,0,0,0 --patch 3C,30,2B,31,FD,FE,FF --export-vgm"
   },
   "Stage2": {
-    "seed": 2026,
-    "style": 11,
-    "style_name": "eurobeat",
+    "seed": 77,
+    "style": 14,
+    "style_name": "airwolf",
     "vol": "0,0,0,0,0,0,0",
-    "patch": "3E,07,26,59,FD,FE,FF",
+    "patch": "49,2E,26,58,FD,FE,FF",
     "roles": "lead,arp,bass,pad,kick,snare,hat",
     "mood": {
       "key_root": 4,
       "scale": "minor",
       "bpm": 150,
-      "intensity": 0.75,
+      "intensity": 0.7,
       "target_seconds": 150.0,
       "lead_octave": 5,
       "arp_octave": 4,
       "bass_octave": 2,
       "use_drums": true,
-      "meter": "4/4"
+      "meter": "4/4",
+      "form": "song"
     },
-    "prog": "5,3",
+    "prog": "1,0",
     "bpm": null,
     "exported_vgm": true,
-    "date": "2026-10-17",
-    "command": ".venv/bin/python gtools/generate_music.py --track stage2 --seed 2026 --style 11 --vol 0,0,0,0,0,0,0 --patch 3E,07,26,59,FD,FE,FF --prog 5,3 --export-vgm"
+    "date": "2026-11-03",
+    "command": ".venv/bin/python gtools/generate_music.py --track stage2 --seed 77 --style 14 --vol 0,0,0,0,0,0,0 --patch 49,2E,26,58,FD,FE,FF --prog 1,0 --export-vgm"
   },
   "Stage3": {
     "seed": 2026,

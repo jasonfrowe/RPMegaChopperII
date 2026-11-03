@@ -189,6 +189,9 @@ def main():
     text = BUILTIN.get(args.script)
     if text is None:
         text = Path(args.script).read_text()
+    elif args.stage > 1:
+        # Once the title is up: the C startup clears memory before that.
+        text = text.replace("run 30\n", f"run 30\npoke {{first_level}} {le(args.stage - 1, 1)}\n", 1)
     syms = symbols()
 
     def sub(m):

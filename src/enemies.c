@@ -5,6 +5,7 @@
 #include "game.h"
 #include "hud.h"
 #include "input.h"
+#include "level.h"
 #include "player.h"
 #include "projectiles.h"
 #include "sfx.h"
@@ -13,7 +14,11 @@
 #include "xram.h"
 
 /* The rules are the original game's: see docs/ORIGINAL_GAMEPLAY.md.
- * Heights "above landed height" are measured up from GROUND_Y. */
+ * Heights "above landed height" are measured up from GROUND_Y.
+ *
+ * Level 2 (the lakes) swaps the enemies: jeeps for tanks (the same zones
+ * and patrols, faster, firing machine-gun bursts, and the cannon kills
+ * them), rocket turrets for the balloon, and worms for the jet. */
 
 /* --- Tanks ---------------------------------------------------------------- */
 #define TANKS_ACTIVE 2        /* moving and shown at once, out of all the zones' */
@@ -39,6 +44,18 @@
 #define TANK_RELOAD_MIN 24    /* frames (30-59 in the original) */
 #define TANK_RELOAD_SPREAD 24
 
+/* --- Jeeps (level 2), where they differ from tanks ------------------------ */
+#define JEEP_Y (GROUND_LINE - JEEP_H + 2)
+#define JEEP_SPEED (2 * ONE_PIXEL)
+#define JEEP_PATROL_SPEED 16
+#define JEEP_FIRE_RANGE 110   /* px across from the chopper */
+#define JEEP_REACH 120        /* px up to the chopper's middle: its rounds go no further */
+#define JEEP_BURST 3          /* rounds a burst */
+#define JEEP_BURST_GAP 5      /* frames between them */
+#define JEEP_ROUND_SPEED 64   /* subpixels per frame */
+#define JEEP_RELOAD_MIN 50
+#define JEEP_RELOAD_SPREAD 40
+
 /* --- Balloon -------------------------------------------------------------- */
 #define BALLOON_TRIGGER 24    /* hostages out of the prisons (16 in the original) */
 #define BALLOON_OFFSCREEN 128 /* px off screen it appears (64 in the original) */
@@ -50,7 +67,6 @@
 #define BALLOON_SPEED_Y 8
 
 /* --- Jet ------------------------------------------------------------------ */
-#define JET_TRIGGER 3         /* prisons opened (the original: 24 hostages out) */
 #define JET_WARN_TIME 90      /* frames of warning before a jet arrives */
 #define JET_GROUND_WAIT 120   /* frames landed before a bomber may come */
 #define JET_AIR_WAIT 180      /* frames up high before a fighter may come */
@@ -104,6 +120,7 @@ typedef struct
     uint8_t anim;
     int8_t turret; /* -1 up-left, 0 up, 1 up-right */
     bool in_view;  /* on screen: its hold on firing starts when it comes in */
+    uint8_t burst; /* a jeep's rounds still to fire in this burst */
 } tank_t;
 
 typedef struct
@@ -140,16 +157,28 @@ static zone_tank_t zone[NUM_COMPOUNDS][TANKS_PER_BASE];
 static uint16_t roll_timer[NUM_COMPOUNDS];
 static bool opened[NUM_COMPOUNDS]; /* seen breached, so its tanks are due */
 
-/* How long after each prison is opened, in order, its first tank comes into
- * view: longest at the first prison, quicker later on. */
-static const uint16_t first_tank[NUM_COMPOUNDS] = {8 * 60, 6 * 60, 5 * 60, 5 * 60};
+/* Tanks, or jeeps on level 2: their size and pace. */
+static bool boreal;
+static uint8_t vw;       /* width */
+static int16_t veh_y;    /* top */
+static int8_t veh_speed, veh_patrol;
 static balloon_t balloon;
 static jet_t jet;
 static uint16_t loiter_ground, loiter_air;
 static bool radar_warned;
 
+static void turrets_init(void);
+static void worm_init(void);
+
 void enemies_init(void)
 {
+    boreal = level_theme == THEME_BOREAL;
+    vw = boreal ? JEEP_W : TANK_W;
+    veh_y = boreal ? JEEP_Y : TANK_Y;
+    veh_speed = boreal ? JEEP_SPEED : TANK_SPEED;
+    veh_patrol = boreal ? JEEP_PATROL_SPEED : TANK_PATROL_SPEED;
+    turrets_init();
+    worm_init();
     for (uint8_t i = 0; i < TANKS_ACTIVE; i++)
         tanks[i].active = false;
     for (uint8_t b = 0; b < NUM_COMPOUNDS; b++) {
@@ -196,8 +225,8 @@ static const int8_t aim_vy[AIMS] = {-84, -83, -79, -73, -64, -54, -42, -29};
  * anyway; it falls short. */
 static void tank_fire(tank_t *t, int16_t ccx)
 {
-    int16_t ox = FROM_SUB(t->x) + TANK_W / 2;
-    int16_t oy = TANK_Y + 4;
+    int16_t ox = FROM_SUB(t->x) + vw / 2;
+    int16_t oy = veh_y + 4;
     ccx += (int16_t)(rng_next() % 13) - 6; /* not quite dead on */
     int8_t side = ccx >= ox ? 1 : -1;
     /* Everything in subpixels from the muzzle, small enough for 16 bits:
@@ -232,6 +261,39 @@ static void tank_fire(tank_t *t, int16_t ccx)
     sfx_enemy(SFX_TANK_FIRE, SFX_PRI_FIRE);
 }
 
+/* A jeep fires bursts from its machine gun, straight at the chopper, but
+ * its rounds don't carry far: a chopper well up is out of reach. */
+static void jeep_fire(tank_t *t, bool view, bool chasing, int16_t to_chopper, int16_t ccx)
+{
+    if (t->burst) {
+        if (--t->cooldown)
+            return;
+        int16_t ox = FROM_SUB(t->x) + vw / 2;
+        int16_t oy = JEEP_Y;
+        int16_t dx = ccx + (int16_t)(rng_next() % 9) - 4 - ox;
+        int16_t dy = FROM_SUB(chopper_y) + CHOPPER_H / 2 - oy;
+        int16_t ax = abs(dx), ay = abs(dy);
+        int16_t len = (ax > ay ? ax + ay / 2 : ay + ax / 2) + 1; /* about the distance */
+        ebullet_spawn(ox - 4, oy - 2, dx * JEEP_ROUND_SPEED / len, dy * JEEP_ROUND_SPEED / len, EB_MG);
+        sfx_enemy(SFX_VULCAN, SFX_PRI_FIRE);
+        if (--t->burst)
+            t->cooldown = JEEP_BURST_GAP;
+        else
+            t->cooldown = JEEP_RELOAD_MIN + rng_range8(0, JEEP_RELOAD_SPREAD);
+        return;
+    }
+    if (t->cooldown) {
+        t->cooldown--;
+        return;
+    }
+    int16_t dy = veh_y - (FROM_SUB(chopper_y) + CHOPPER_H / 2);
+    if (chasing && view && abs(to_chopper) < JEEP_FIRE_RANGE && dy < JEEP_REACH &&
+        rng_range8(0, 99) < TANK_FIRE_CHANCE) {
+        t->burst = JEEP_BURST;
+        t->cooldown = 1;
+    }
+}
+
 static uint8_t nearest_base(int16_t x)
 {
     uint8_t best = 0;
@@ -250,8 +312,19 @@ static void tank_sleep(tank_t *t)
     t->active = false;
 }
 
+/* Where prison b rolls a tank out, west or east of it, just out of sight. */
+static int16_t spawn_x(uint8_t b, bool west)
+{
+    int16_t x = (west ? base_x(b) - TANK_SPAWN_DIST : base_x(b) + TANK_SPAWN_DIST) - vw / 2;
+    if (x < 0)
+        x = 0;
+    if (x > SAFE_LINE - vw - 8)
+        x = SAFE_LINE - vw - 8; /* never on the home side of the border */
+    return x;
+}
+
 /* Prisons roll their tanks out of the garage once they have been opened,
- * on a schedule: the first tank comes into view first_tank[] after the
+ * on a schedule: the first tank comes into view level->first_vehicle[] after the
  * prison is opened, the second TANK_SPAWN_GAP later. They come from just
  * out of sight, on whichever side has none yet, and only from the prison
  * nearest the chopper. A rebuilt tank rolls out the same way. */
@@ -260,7 +333,7 @@ static void roll_out(int16_t ccx, bool safe)
     for (uint8_t b = 0; b < NUM_COMPOUNDS; b++) {
         if (!opened[b] && compounds[b].breached) {
             opened[b] = true;
-            roll_timer[b] = first_tank[compounds_breached() - 1] - TANK_TRAVEL;
+            roll_timer[b] = level->first_vehicle[compounds_breached() - 1] - TANK_TRAVEL;
         }
         if (roll_timer[b])
             roll_timer[b]--;
@@ -280,20 +353,20 @@ static void roll_out(int16_t ccx, bool safe)
         if (t->state == T_GARAGE) {
             if (!z)
                 z = t;
-        } else if (t->state == T_OUT && t->x + TANK_W / 2 < base_x(b)) {
+        } else if (t->state == T_OUT && t->x + vw / 2 < base_x(b)) {
             west = true;
         }
     }
     if (!z)
         return;
-    /* On the side the chopper isn't looking at, if it can. */
-    int16_t x = (!west ? base_x(b) - TANK_SPAWN_DIST : base_x(b) + TANK_SPAWN_DIST) - TANK_W / 2;
-    if (x < 0)
-        x = 0;
-    if (x > SAFE_LINE - TANK_W - 8)
-        x = SAFE_LINE - TANK_W - 8; /* never on the home side of the border */
-    if (!offscreen(x, TANK_W, TANK_OFFSCREEN))
-        return;
+    /* West of the prison if none of its tanks is there yet, else east;
+     * and east if the spot in the west is in view. */
+    int16_t x = spawn_x(b, !west);
+    if (!offscreen(x, vw, TANK_OFFSCREEN)) {
+        x = spawn_x(b, false);
+        if (west || !offscreen(x, vw, TANK_OFFSCREEN))
+            return;
+    }
     z->state = T_OUT;
     z->mode = M_RETURN;
     z->awake = false;
@@ -311,7 +384,7 @@ static void wake_and_sleep(int16_t ccx)
     for (uint8_t i = 0; i < TANKS_ACTIVE; i++) {
         tank_t *t = &tanks[i];
         int16_t tx = FROM_SUB(t->x);
-        if (t->active && abs(tx + TANK_W / 2 - ccx) > TANK_RANGE + 64 && offscreen(tx, TANK_W, TANK_OFFSCREEN))
+        if (t->active && abs(tx + vw / 2 - ccx) > TANK_RANGE + 64 && offscreen(tx, vw, TANK_OFFSCREEN))
             tank_sleep(t);
     }
     for (uint8_t i = 0; i < TANKS_ACTIVE; i++) {
@@ -326,8 +399,8 @@ static void wake_and_sleep(int16_t ccx)
                 zone_tank_t *z = &zone[b][k];
                 if (z->state != T_OUT || z->awake)
                     continue;
-                int16_t d = abs(z->x + TANK_W / 2 - ccx);
-                if (d < bd && offscreen(z->x, TANK_W, TANK_OFFSCREEN)) {
+                int16_t d = abs(z->x + vw / 2 - ccx);
+                if (d < bd && offscreen(z->x, vw, TANK_OFFSCREEN)) {
                     best = z;
                     bd = d;
                     bb = b;
@@ -346,6 +419,7 @@ static void wake_and_sleep(int16_t ccx)
         t->cooldown = TANK_FIRST_SHOT;
         t->anim = 0;
         t->turret = 0;
+        t->burst = 0;
     }
 }
 
@@ -363,7 +437,7 @@ static void update_tanks(int16_t ccx, bool safe)
             continue;
         zone_tank_t *z = &zone[t->base][t->slot];
         int16_t tx = FROM_SUB(t->x);
-        int16_t tcx = tx + TANK_W / 2;
+        int16_t tcx = tx + vw / 2;
         int16_t home = base_x(t->base);
         int16_t from_base = tcx - home;
         int16_t to_chopper = ccx - tcx;
@@ -381,7 +455,7 @@ static void update_tanks(int16_t ccx, bool safe)
         }
 
         int16_t target;
-        int8_t speed = TANK_SPEED;
+        int8_t speed = veh_speed;
         if (z->mode == M_RETURN) {
             target = home;
         } else if (z->mode == M_CHASE) {
@@ -393,7 +467,7 @@ static void update_tanks(int16_t ccx, bool safe)
                 target = home - TANK_ZONE;
         } else {
             /* Back and forth across the middle of its zone, slowly. */
-            speed = TANK_PATROL_SPEED;
+            speed = veh_patrol;
             if (from_base >= TANK_PATROL)
                 z->patrol = -1;
             else if (from_base <= -TANK_PATROL)
@@ -430,11 +504,13 @@ static void update_tanks(int16_t ccx, bool safe)
 
         /* It holds fire for a while each time it comes into view, so the
          * player sees it coming, and then only fires when it is close. */
-        bool view = screen_x(tx) > -TANK_W / 2 && screen_x(tx) < SCREEN_W - TANK_W / 2;
+        bool view = screen_x(tx) > -vw / 2 && screen_x(tx) < SCREEN_W - vw / 2;
         if (view && !t->in_view)
             t->cooldown = TANK_FIRST_SHOT;
         t->in_view = view;
-        if (t->cooldown) {
+        if (boreal) {
+            jeep_fire(t, view, z->mode == M_CHASE, to_chopper, ccx);
+        } else if (t->cooldown) {
             t->cooldown--;
         } else if (z->mode == M_CHASE && view && abs(to_chopper) < TANK_FIRE_RANGE &&
                    rng_range8(0, 99) < TANK_FIRE_CHANCE && ebullets_of(EB_FLAK) < TANK_SHELLS) {
@@ -444,11 +520,12 @@ static void update_tanks(int16_t ccx, bool safe)
     }
 }
 
-void tanks_bomb(int16_t x)
+/* A tank or jeep at world x (within `reach`) is wrecked. */
+static bool vehicles_hit(int16_t x, uint8_t reach)
 {
     for (uint8_t i = 0; i < TANKS_ACTIVE; i++) {
         tank_t *t = &tanks[i];
-        if (!t->active || abs(x - (FROM_SUB(t->x) + TANK_W / 2)) >= 20)
+        if (!t->active || abs(x - (FROM_SUB(t->x) + vw / 2)) >= reach)
             continue;
         /* A wreck; its prison rebuilds it in a while, and rolls it out
          * again when it is the nearest. */
@@ -457,10 +534,11 @@ void tanks_bomb(int16_t x)
         z->awake = false;
         z->rebuild = TANK_REBUILD;
         t->active = false;
-        add_score(200);
-        explosion_spawn(FROM_SUB(t->x) + TANK_W / 2, TANK_Y + 8, true);
-        return;
+        add_score(boreal ? 150 : 200);
+        explosion_spawn(FROM_SUB(t->x) + vw / 2, veh_y + 8, true);
+        return true;
     }
+    return false;
 }
 
 /* --- The balloon ---------------------------------------------------------- */
@@ -533,7 +611,7 @@ static void update_balloon(int16_t ccx, int16_t ccy)
     }
 }
 
-bool balloons_check_hit(int16_t x, int16_t y)
+static bool balloon_hit(int16_t x, int16_t y)
 {
     balloon_t *b = &balloon;
     if (!b->active || b->falling)
@@ -554,7 +632,7 @@ static void update_jet(int16_t ccx, bool safe)
 {
     jet_t *j = &jet;
     if (j->state == JET_OFF) {
-        if (compounds_breached() < JET_TRIGGER)
+        if (compounds_breached() < level->air_trigger)
             return;
         if (safe) {
             loiter_ground = loiter_air = 0;
@@ -660,7 +738,7 @@ static void update_jet(int16_t ccx, bool safe)
         j->state = JET_OFF;
 }
 
-bool jets_check_hit(int16_t x, int16_t y)
+static bool jet_hit(int16_t x, int16_t y)
 {
     jet_t *j = &jet;
     if (j->state == JET_OFF || j->state == JET_WARN)
@@ -674,6 +752,225 @@ bool jets_check_hit(int16_t x, int16_t y)
     return true;
 }
 
+/* --- Rocket turrets (level 2) --------------------------------------------- */
+/* One stands east of each prison, on the way home, and is manned once
+ * that prison is opened. It turns its launcher to the chopper, holds fire
+ * for a while each time it comes into view, then, with the chopper in
+ * range and in the air, blinks its light and fires a rocket that homes on
+ * the chopper for a moment. The cannon or a bomb wrecks it, and it is
+ * rebuilt after a while. */
+#define TURRET_FROM_BASE 260  /* px east of its prison's door */
+#define TURRET_Y (GROUND_LINE - TURRET_H + 3)
+#define TURRET_RANGE 200      /* px across to the chopper */
+#define TURRET_FIRST_SHOT 90  /* frames it holds fire after coming into view */
+#define TURRET_WARN 40        /* frames its light blinks before it fires */
+#define TURRET_RELOAD 150
+#define TURRET_RELOAD_SPREAD 90
+#define TURRET_REBUILD (15 * 60)
+#define ROCKETS 2             /* in the air at once, from all of them */
+#define ROCKET_SPEED 40       /* subpixels per frame, at launch */
+
+typedef struct
+{
+    bool wreck;
+    bool in_view;
+    uint8_t aim;      /* frame: 0 low, 1 steep, 2 straight up */
+    int8_t dir;       /* which way it faces */
+    uint8_t cooldown;
+    uint8_t warn;     /* frames until it fires, blinking */
+    uint16_t rebuild;
+} turret_t;
+
+static turret_t turrets[NUM_COMPOUNDS];
+static bool light_on = true;
+
+static int16_t turret_x(uint8_t i) /* left edge */
+{
+    return base_x(i) + TURRET_FROM_BASE - TURRET_W / 2;
+}
+
+static void turrets_init(void)
+{
+    for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
+        turrets[i].wreck = false;
+        turrets[i].in_view = false;
+        turrets[i].aim = 0;
+        turrets[i].dir = -1;
+        turrets[i].warn = 0;
+    }
+    light_on = true; /* as the bank's palette has it */
+}
+
+/* Launch speeds for each aim: 30 degrees, 60, straight up. */
+static const int8_t launch_vx[3] = {35, 20, 0};
+static const int8_t launch_vy[3] = {-20, -35, -ROCKET_SPEED};
+
+static void update_turrets(int16_t ccx, int16_t ccy, bool safe)
+{
+    for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
+        turret_t *t = &turrets[i];
+        if (t->wreck) {
+            if (!--t->rebuild)
+                t->wreck = false;
+            continue;
+        }
+        int16_t tx = turret_x(i);
+        int16_t tcx = tx + TURRET_W / 2;
+        bool view = screen_x(tx) > -TURRET_W / 2 && screen_x(tx) < SCREEN_W - TURRET_W / 2;
+        if (view && !t->in_view)
+            t->cooldown = TURRET_FIRST_SHOT;
+        t->in_view = view;
+        if (!opened[i] || !view)
+            continue;
+        /* Point at the chopper. */
+        int16_t dx = ccx - tcx, up = TURRET_Y - ccy;
+        int16_t ax = abs(dx);
+        t->dir = dx > 0 ? 1 : -1;
+        t->aim = up * 5 < ax * 3 ? 0 : (up * 3 < ax * 5 ? 1 : 2);
+        if (t->warn) {
+            if (--t->warn)
+                continue;
+            int8_t vx = t->dir * launch_vx[t->aim];
+            int16_t mx = tcx + t->dir * (t->aim == 2 ? 0 : (t->aim == 1 ? 6 : 10));
+            ebullet_spawn(mx - 4, TURRET_Y + (t->aim == 0 ? 2 : 0), vx, launch_vy[t->aim], EB_ROCKET);
+            sfx_enemy(SFX_TANK_FIRE, SFX_PRI_FIRE);
+            t->cooldown = TURRET_RELOAD + rng_range8(0, TURRET_RELOAD_SPREAD);
+            continue;
+        }
+        if (t->cooldown) {
+            t->cooldown--;
+            continue;
+        }
+        if (!safe && player_alive() && !chopper_is_landed && ax < TURRET_RANGE && up > 0 &&
+            ebullets_of(EB_ROCKET) < ROCKETS)
+            t->warn = TURRET_WARN;
+    }
+}
+
+static bool turret_hit(int16_t x, int16_t y, bool bomb)
+{
+    for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
+        turret_t *t = &turrets[i];
+        int16_t tcx = turret_x(i) + TURRET_W / 2;
+        if (t->wreck || abs(x - tcx) >= (bomb ? 18 : 11) || (!bomb && y < TURRET_Y + 2))
+            continue;
+        t->wreck = true;
+        t->warn = 0;
+        t->rebuild = TURRET_REBUILD;
+        add_score(250);
+        explosion_spawn(tcx, TURRET_Y + 8, true);
+        return true;
+    }
+    return false;
+}
+
+/* --- Worms (level 2) ------------------------------------------------------ */
+/* Sit on the ground too long, away from home, once enough prisons are
+ * open, and a worm comes for the chopper: a ridge of earth tunnels toward
+ * it, and when it gets there the worm bursts up and swallows whatever is
+ * there. Lifting off in time is the answer; a bomb on the ridge kills it,
+ * and so does the cannon while it is out of the ground. */
+#define WORM_GROUND_WAIT 90  /* frames landed before one may come */
+#define WORM_START 150       /* px from the chopper it starts tunnelling */
+#define WORM_SPEED 20        /* subpixels per frame */
+#define WORM_GIVE_UP 240     /* frames it hunts before going deep again */
+#define WORM_BITE 16         /* px either side of its middle */
+#define WORM_TOP (GROUND_LINE - WORM_H + 4)
+
+enum
+{
+    WORM_OFF,
+    WORM_TUNNEL,
+    WORM_LUNGE
+};
+
+static struct
+{
+    uint8_t state;
+    int32_t x;  /* subpixels, its middle */
+    uint16_t timer;
+} worm;
+
+/* The lunge, by frames since it began: which frame shows, and whether it
+ * is up high enough to bite. */
+#define LUNGE_TIME 56
+static uint8_t lunge_frame(uint16_t t)
+{
+    return t < 6 ? 0 : (t < 12 ? 1 : (t < 40 ? 2 : (t < 48 ? 1 : 0)));
+}
+
+static void worm_init(void)
+{
+    worm.state = WORM_OFF;
+}
+
+static void update_worm(int16_t ccx, bool safe)
+{
+    if (worm.state == WORM_OFF) {
+        if (compounds_breached() < level->air_trigger || safe || !chopper_is_landed || !player_alive()) {
+            loiter_ground = 0;
+            return;
+        }
+        if (++loiter_ground <= WORM_GROUND_WAIT || rng_range8(0, 99) >= 2)
+            return;
+        loiter_ground = 0;
+        int16_t x = ccx + (rng_coin() ? WORM_START : -WORM_START);
+        if (x < 16 || x > SAFE_LINE)
+            x = 2 * ccx - x; /* the other side */
+        worm.state = WORM_TUNNEL;
+        worm.x = TO_SUB(x);
+        worm.timer = 0;
+        msg_flash("SOMETHING IS TUNNELLING TOWARD YOU!", C_ORANGE, 120);
+        sfx_enemy(SFX_WARNING, SFX_PRI_EVENT);
+        return;
+    }
+    int16_t wx = FROM_SUB(worm.x);
+    if (worm.state == WORM_TUNNEL) {
+        if (++worm.timer > WORM_GIVE_UP) {
+            worm.state = WORM_OFF;
+            return;
+        }
+        int16_t d = ccx - wx;
+        if (abs(d) <= 2) {
+            worm.state = WORM_LUNGE;
+            worm.timer = 0;
+            sfx_enemy(SFX_BIG_EXPLODE, SFX_PRI_EVENT);
+            return;
+        }
+        worm.x += d > 0 ? WORM_SPEED : -WORM_SPEED;
+        return;
+    }
+    /* Out of the ground: what is over it, low enough, is swallowed. */
+    uint16_t t = worm.timer++;
+    if (t >= LUNGE_TIME) {
+        worm.state = WORM_OFF;
+        return;
+    }
+    if (lunge_frame(t) == 2 && player_alive() && abs(ccx - wx) < WORM_BITE &&
+        FROM_SUB(chopper_y) + CHOPPER_H > WORM_TOP + 6) {
+        explosion_spawn(ccx, FROM_SUB(chopper_y) + CHOPPER_H / 2, true);
+        player_kill();
+    }
+}
+
+static bool worm_hit(int16_t x, int16_t y, bool bomb)
+{
+    int16_t wx = FROM_SUB(worm.x);
+    bool hit;
+    if (worm.state == WORM_TUNNEL)
+        hit = bomb && abs(x - wx) < 18;
+    else if (worm.state == WORM_LUNGE)
+        hit = lunge_frame(worm.timer) == 2 && abs(x - wx) < 10 && (bomb || y > WORM_TOP);
+    else
+        hit = false;
+    if (!hit)
+        return false;
+    worm.state = WORM_OFF;
+    add_score(300);
+    explosion_spawn(wx, GROUND_LINE - 10, true);
+    return true;
+}
+
 /* --------------------------------------------------------------------------- */
 
 void enemies_update(void)
@@ -682,8 +979,63 @@ void enemies_update(void)
     int16_t ccy = FROM_SUB(chopper_y) + CHOPPER_H / 2;
     bool safe = ccx > SAFE_LINE;
     update_tanks(ccx, safe);
-    update_balloon(ccx, ccy);
-    update_jet(ccx, safe);
+    if (boreal) {
+        update_turrets(ccx, ccy, safe);
+        update_worm(ccx, safe);
+    } else {
+        update_balloon(ccx, ccy);
+        update_jet(ccx, safe);
+    }
+}
+
+void enemies_bomb(int16_t x, bool deep)
+{
+    if (deep && vehicles_hit(x, 20))
+        return;
+    if (boreal && !turret_hit(x, 0, true))
+        worm_hit(x, 0, true);
+}
+
+bool enemies_check_hit(int16_t x, int16_t y)
+{
+    if (!boreal)
+        return balloon_hit(x, y) || jet_hit(x, y);
+    /* The cannon kills a jeep, low over the ground. */
+    if (y >= JEEP_Y + 2 && y < GROUND_LINE && vehicles_hit(x, JEEP_W / 2))
+        return true;
+    return turret_hit(x, y, false) || worm_hit(x, y, false);
+}
+
+/* Level 2's turrets and worm. The turrets' warning light is a palette
+ * entry: it blinks while any of them is about to fire. */
+#define TURRET_LIGHT 10
+static void boreal_render(int16_t cam)
+{
+    bool warn = false;
+    for (uint8_t i = 0; i < NUM_COMPOUNDS; i++) {
+        turret_t *t = &turrets[i];
+        warn |= t->warn != 0;
+        uint8_t f = t->wreck ? 3 : t->aim;
+        spr_place(SPR_BALLOON_START + i, XRAM_IMG_TURRET + f * TURRET_FRAME_BYTES, PAL_TURRET,
+                  WH(TURRET_W, TURRET_H), t->dir > 0 ? OPT4_FLIP : OPT4, turret_x(i) - cam, TURRET_Y);
+    }
+    bool on = !warn || (frame_count & 4);
+    if (on != light_on) {
+        light_on = on;
+        uint16_t c = (on ? COLOR_FROM_RGB8(255, 60, 50) : COLOR_FROM_RGB8(90, 12, 14)) | COLOR_ALPHA_MASK;
+        xram0_write(PAL_ADDR(PAL_TURRET) + TURRET_LIGHT * 2, &c, 2);
+    }
+
+    spr_hide(SPR_JET_START + 1);
+    int16_t wx = FROM_SUB(worm.x);
+    if (worm.state == WORM_TUNNEL)
+        spr_place(SPR_JET_START, XRAM_IMG_MOUND + ((frame_count >> 3) & 1) * MOUND_FRAME_BYTES, PAL_WORM,
+                  WH(MOUND_W, MOUND_H), (wx & 8) ? OPT4_FLIP : OPT4, wx - MOUND_W / 2 - cam, GROUND_LINE - MOUND_H + 3);
+    else if (worm.state == WORM_LUNGE)
+        spr_place(SPR_JET_START, XRAM_IMG_WORM + lunge_frame(worm.timer) * WORM_FRAME_BYTES, PAL_WORM,
+                  WH(WORM_W, WORM_H), OPT4, wx - WORM_W / 2 - cam, WORM_TOP);
+    else
+        spr_hide(SPR_JET_START);
 }
 
 void enemies_render(void)
@@ -704,9 +1056,20 @@ void enemies_render(void)
         /* The sprite faces left with its gun raised forward; flip it to
          * aim right. Straight up uses the raised-gun frames. */
         bool right = t->turret ? t->turret > 0 : zone[t->base][t->slot].dir > 0;
+        if (boreal) {
+            uint8_t f = (t->turret ? 0 : 2) + ((t->anim >> 2) & 1);
+            spr_place(SPR_TANK_START + i, XRAM_IMG_JEEP + f * JEEP_FRAME_BYTES, PAL_JEEP, WH(JEEP_W, JEEP_H),
+                      right ? OPT4_FLIP : OPT4, FROM_SUB(t->x) - cam, JEEP_Y);
+            continue;
+        }
         uint8_t f = (t->turret ? 0 : 2) + ((t->anim >> 3) & 1);
         spr_place(SPR_TANK_START + i, XRAM_IMG_TANK + f * TANK_FRAME_BYTES, PAL_TANK, WH(TANK_W, TANK_H),
                   right ? OPT4_FLIP : OPT4, FROM_SUB(t->x) - cam, TANK_Y);
+    }
+
+    if (boreal) {
+        boreal_render(cam);
+        return;
     }
 
     for (uint8_t i = 0; i < SPR_BALLOON_COUNT; i++) {

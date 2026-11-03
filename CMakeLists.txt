@@ -31,9 +31,6 @@ endfunction()
 # Sprite sheets (frame width, height)
 chopper_sheet(chopper 40 20 XRAM_IMG_CHOPPER)
 chopper_sheet(hostages 16 16 XRAM_IMG_HOSTAGES)
-chopper_sheet(tank 40 20 XRAM_IMG_TANK)
-chopper_sheet(jet 40 16 XRAM_IMG_JET)
-chopper_sheet(balloon 32 32 XRAM_IMG_BALLOON)
 chopper_sheet(bomb 8 8 XRAM_IMG_BOMB)
 chopper_sheet(bullet 8 4 XRAM_IMG_BULLET)
 chopper_sheet(explosion 32 32 XRAM_IMG_EXPLOSION)
@@ -44,20 +41,32 @@ chopper_sheet(snow 4 4 XRAM_IMG_SNOW)
 chopper_sheet(gust 16 8 XRAM_IMG_GUST)
 chopper_sheet(logo 64 24 XRAM_IMG_LOGO 1)
 
-# Mode 2 tile sheets: far sky and hills in 8x8 tiles, the ground in 16x16
-chopper_sheet(far_tiles 8 8 XRAM_TILES_FAR)
-chopper_sheet(mid_tiles 8 8 XRAM_TILES_MID)
-chopper_sheet(fg_tiles 16 16 XRAM_TILES_FG)
-
-# Binary assets (palettes, tile maps, sound effects)
-rp6502_asset(RPMegaChopperII XRAM(XRAM_PALETTES) images/palettes.bin)
+# Sound effects
 rp6502_asset(RPMegaChopperII XRAM(XRAM_SFX_DATA) music/sfx.bin)
-rp6502_asset(RPMegaChopperII XRAM(XRAM_MAP_FAR) images/far_map.bin)
-rp6502_asset(RPMegaChopperII XRAM(XRAM_MAP_MID) images/mid_map.bin)
-rp6502_asset(RPMegaChopperII XRAM(XRAM_MAP_FG) images/fg_map.bin)
+
+# Each level's own art (enemies, tiles, maps, palettes), packed as
+# ROM:level<N>.bin and loaded into XRAM when the level starts.
+function(chopper_level n)
+    set(out ${CMAKE_CURRENT_BINARY_DIR}/level${n}.bin)
+    file(GLOB deps CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/images/level${n}/*)
+    add_custom_command(
+        OUTPUT ${out}
+        COMMAND ${ART_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/tools/mklevel.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/images/level${n}/level.json ${out}
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/mklevel.py ${CMAKE_CURRENT_SOURCE_DIR}/tools/png2bin.py ${deps}
+        VERBATIM
+    )
+    rp6502_asset(RPMegaChopperII level${n}.bin ${out})
+endfunction()
+
+foreach(n RANGE 1 9)
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/images/level${n}/level.json)
+        chopper_level(${n})
+    endif()
+endforeach()
 
 # Streamed VGM music tracks in ROM
-foreach(track Title Stage1 Victory Gameover)
+foreach(track Title Stage1 Stage2 Victory Gameover)
     if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/music/${track}.vgm)
         rp6502_asset(RPMegaChopperII ${track}.vgm music/${track}.vgm)
     endif()
@@ -78,6 +87,7 @@ target_sources(RPMegaChopperII PRIVATE
     src/hostages.c
     src/hud.c
     src/input.c
+    src/level.c
     src/music.c
     src/opl.c
     src/player.c

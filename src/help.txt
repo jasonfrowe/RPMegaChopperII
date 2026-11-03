@@ -21,6 +21,11 @@ Only a bomb dropped from high up destroys a tank, and they keep coming;
 their shells can't reach you up high. A mine balloon chases you once
 hostages are out. Later, jets bomb you if you sit on the ground too long,
 and shoot you if you stay up high too long.
+Sector 2, the lakes: jeeps instead of tanks, fast, with machine guns
+that don't reach far up; the cannon kills them. Rocket turrets east of
+the prisons fire when their light blinks: turn hard. Sit on the ground
+too long and a worm tunnels toward you: lift off, or bomb its ridge.
+After the last sector it goes round again, harder.
 Nothing attacks near the home base, east of the border flag. Now and
 then a blizzard blows in: it's hard to see and the wind pushes you about. If the chopper goes down, everyone
 aboard is lost.

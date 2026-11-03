@@ -19,24 +19,25 @@ H = 200         # down to screen row 216, under the hills by then
 HORIZON = 150   # image row where the sky is at its lightest
 
 
-def paint(seed=7):
-    rng = np.random.default_rng(seed)
-    img = np.zeros((H, W), np.uint8)
-    yy, xx = np.mgrid[0:H, 0:W]
-    d8 = bayer(H, W, 8)
+CURTAINS = [(78, 16, 46, (2, 3)), (46, 10, 30, (3, 5))]
 
-    # Sky: a gradient through the six sky colors, dithered so each band of
-    # tiles is the same all the way across.
-    t = np.clip(yy / HORIZON, 0, 1) ** 1.25 * (len(pal.SKY) - 1)
-    img[:] = np.clip(np.floor(t + d8), 0, len(pal.SKY) - 1).astype(np.uint8)
 
-    # Aurora: two curtains hanging from wavy lower edges. Brightest at the
-    # lower edge and fading upward in vertical rays. Each pixel's slot
-    # (8-12) picks which step of the brightness wave it shows, so the game's
-    # palette rotation sends light rippling along the curtain.
+def sky(img, yy, d8):
+    """A gradient through the six sky colors, dithered so each band of
+    tiles is the same all the way across."""
+    t = np.clip(yy / HORIZON, 0, 1) ** 1.25 * 5
+    img[:] = np.clip(np.floor(t + d8), 0, 5).astype(np.uint8)
+
+
+def aurora(img, yy, xx, d8, seed, curtains=CURTAINS):
+    """Curtains hanging from wavy lower edges, (lower edge row, its sway,
+    height, (cycles across the layer)) each. Brightest at the lower edge and
+    fading upward in vertical rays. Each pixel's slot (8-12) picks which
+    step of the brightness wave it shows, so the game's palette rotation
+    sends light rippling along the curtain."""
     aur = np.zeros((H, W))
     phase = np.zeros((H, W))
-    for k, (base, amp, height, cyc) in enumerate([(78, 16, 46, (2, 3)), (46, 10, 30, (3, 5))]):
+    for k, (base, amp, height, cyc) in enumerate(curtains):
         edge = base + wave(W, [(cyc[0], amp), (cyc[1], amp * 0.45), (7, 2.5)], seed + k)
         hgt = height + wave(W, [(2, height * 0.3), (5, height * 0.15)], seed + 10 + k)
         rays = 0.55 + 0.45 * fbm(1, W, 6, seed + 20 + k, octaves=2)[0]
@@ -50,6 +51,32 @@ def paint(seed=7):
     slot = (np.floor(phase) % 5).astype(np.uint8)
     lit = aur > (0.10 + d8 * 0.85)
     img[lit] = pal.FAR_AURORA + slot[lit]
+
+
+def stars(img, rng, ridge, n=140, top=120):
+    """Stars in clear sky above the ridge line, a few bright ones with a
+    cross of dim light."""
+    clear = img < len(pal.SKY)
+    for _ in range(n):
+        x, y = rng.integers(0, W), rng.integers(0, top)
+        if not clear[y, x] or y >= ridge[x] - 6:
+            continue
+        if rng.random() < 0.18 and 1 <= y < H - 1:
+            img[y, x] = 7
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                if clear[y + dy, (x + dx) % W]:
+                    img[y + dy, (x + dx) % W] = 6
+        else:
+            img[y, x] = 7 if rng.random() < 0.3 else 6
+
+
+def paint(seed=7):
+    rng = np.random.default_rng(seed)
+    img = np.zeros((H, W), np.uint8)
+    yy, xx = np.mgrid[0:H, 0:W]
+    d8 = bayer(H, W, 8)
+    sky(img, yy, d8)
+    aurora(img, yy, xx, d8, seed)
 
     # Mountains: a range of peaks, each a pair of faces meeting at a ridge
     # line. The left face takes the light, the right face is in shadow, and
@@ -110,18 +137,6 @@ def paint(seed=7):
     img[m2] = c2[m2].astype(np.uint8)
     img[m2 & ~np.roll(m2, 1, axis=0)] = 14
 
-    # Stars: only in clear sky above the mountains, a few bright ones with
-    # a cross of dim light.
-    clear = img < len(pal.SKY)
-    for _ in range(140):
-        x, y = rng.integers(0, W), rng.integers(0, 120)
-        if not clear[y, x] or y >= ridge[x] - 6:
-            continue
-        if rng.random() < 0.18 and 1 <= y < H - 1:
-            img[y, x] = 7
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                if clear[y + dy, (x + dx) % W]:
-                    img[y + dy, (x + dx) % W] = 6
-        else:
-            img[y, x] = 7 if rng.random() < 0.3 else 6
+    # Stars: only in clear sky above the mountains.
+    stars(img, rng, ridge)
     return img

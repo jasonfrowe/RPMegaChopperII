@@ -10,6 +10,7 @@
 #include "hostages.h"
 #include "hud.h"
 #include "input.h"
+#include "level.h"
 #include "music.h"
 #include "player.h"
 #include "projectiles.h"
@@ -32,6 +33,7 @@ int32_t camera_x;
 uint16_t game_timer;
 uint8_t frame_count;
 volatile uint16_t lag_frames;
+volatile uint8_t first_level; /* poked by test scripts: start this many sectors in */
 
 /* A copy of the game's numbers for test scripts to read. The game keeps
  * the real ones in registers between frames, so memory can be stale. */
@@ -132,6 +134,7 @@ _Static_assert(3 * LOGO_PIECES <= SPR_HOSTAGE_COUNT, "the logo borrows the hosta
 static void enter_title(void)
 {
     gstate = GS_TITLE;
+    level_enter(1); /* the title flies over the first level */
     weather_init();
     game_timer = 0;
     spr_hide_all();
@@ -159,6 +162,7 @@ static void start_level(uint8_t lvl)
     current_level = lvl;
 
     spr_hide_all();
+    level_enter(lvl);
     player_init();
     compounds_init();
     hostages_init();
@@ -170,9 +174,10 @@ static void start_level(uint8_t lvl)
     hud_update();
     msg_flash("SHOOT OR BOMB THE PRISON DOORS OPEN", C_AURORA, 180);
     msg_center(0, "SECTOR  ", C_WHITE);
-    msg_num(23, 0, lvl, 1, C_GOLD);
+    msg_num(23, 0, lvl, lvl < 10 ? 1 : 2, C_GOLD);
+    msg_center(3, level->name, C_CYAN);
 
-    music_play("ROM:Stage1.vgm");
+    music_play(level->music);
 }
 
 static void enter_play(void)
@@ -180,7 +185,7 @@ static void enter_play(void)
     score = 0;
     lives = STARTING_LIVES;
     next_extend = 20000;
-    start_level(1);
+    start_level(1 + first_level);
 }
 
 static void enter_level_clear(void)
@@ -233,9 +238,9 @@ int main(void)
     xreg_vga_canvas(CANVAS_320X240);
     input_init();
     bg_init();
-    bg_palettes_init();
     hud_init();
     spr_init();
+    level_enter(1);
     music_init();
     sfx_init();
     hiscore_load();

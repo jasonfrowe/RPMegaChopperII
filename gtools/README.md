@@ -18,7 +18,7 @@ python3 -m venv .venv
 | Tool | Makes |
 |---|---|
 | `gtools/gen_art.py` | Every graphic in `images/`, and `src/gen/assets.h` |
-| `gtools/chop/` | The art itself: `far.py` (sky, aurora, mountains), `mid.py` (hills, forest, cabins, masts), `fg.py` (the ground, the four prisons, the home base), `sprites.py`, `logo.py`, `pal.py` (every palette), `tilemap.py` (cutting a layer into tiles and fitting it to a budget) |
+| `gtools/chop/` | The art itself: `far.py` (sky, aurora, mountains), `mid.py` (hills, forest, cabins, masts), `fg.py` (the ground, the four prisons, the home base), `boreal.py` (level 2's three layers: forested ridges, the lake, the forest floor), `sprites.py`, `boreal_sprites.py` (level 2's enemies), `logo.py`, `pal.py` (every palette, and each level's), `tilemap.py` (cutting a layer into tiles and fitting it to a budget) |
 | `gtools/art/kit.py` | The lit, outlined pixel-art shapes the sprites are drawn with, from MegaGammaForce. The rest of `gtools/art/` is MegaGammaForce's stage art and is not used here. |
 | `gtools/gen_sfx.py` | OPL2 sound effects in `music/sfx.bin`, `music/sfx/*.vgm`, `src/gen/sfx_ids.h` |
 | `gtools/generate_music.py` | OPL2 music via Furnace: `music/fur_levels/*.fur` and `music/*.vgm` |
@@ -26,15 +26,28 @@ python3 -m venv .venv
 ## Graphics (`gtools/gen_art.py`)
 
 ```sh
-.venv/bin/python gtools/gen_art.py [--preview DIR]
+.venv/bin/python gtools/gen_art.py [--preview DIR] [--sprites [NAME ...]]
 ```
 
-Writes the sprite sheets (`images/<name>.png`, frames side by side), the
-three tile layers (`far_tiles.png` and `mid_tiles.png` in 8x8 tiles,
-`fg_tiles.png` in 16x16, with `*_map.bin`), `logo.png` (1 bit per pixel),
-`palettes.bin` and `src/gen/assets.h`. `--preview DIR` also writes mock
-screens of the layers at a few places in the world, and every sprite sheet
-blown up.
+Writes the shared sprite sheets (`images/<name>.png`, frames side by side),
+`logo.png` (1 bit per pixel) and `src/gen/assets.h`, and for each level, in
+`images/level<N>/`: its enemy sheets, its three tile layers
+(`far_tiles.png` and `mid_tiles.png` in 8x8 tiles, `fg_tiles.png` in 16x16,
+with `*_map.bin`), `palettes.bin` (every palette, with the level's own
+colors) and `level.json`, the list `tools/mklevel.py` packs into
+`ROM:level<N>.bin` at build time. `--preview DIR` also writes mock screens
+of each level at a few places in the world, and every sprite sheet blown up.
+
+**Sprite sheets are left alone if they exist**, since they get touched up by
+hand. `--sprites` redraws all of them from the code; `--sprites tank jeep`
+just those. The tile layers are always redrawn.
+
+Every level has the same world layout (prisons, border and home base where
+`fg.py` puts them); only the painting differs. Level 2's enemies are drawn
+as character grids in `boreal_sprites.py`, like `sprites.py`, and use level
+1's enemy palette slots (`PAL_JEEP` is `PAL_TANK`, `PAL_TURRET` is
+`PAL_BALLOON`, `PAL_WORM` is `PAL_JET`). The enemies of all levels share one
+region of XRAM, `ENEMY_IMG_BYTES`, the size of the largest set.
 
 Each layer is painted as one picture and cut into tiles. When it needs more
 distinct tiles than its budget (`FAR_TILES`, `MID_TILES`, `FG_TILES` at the

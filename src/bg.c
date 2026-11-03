@@ -1,6 +1,7 @@
 #include <rp6502.h>
 #include "bg.h"
 #include "game.h"
+#include "level.h"
 #include "weather.h"
 #include "xram.h"
 
@@ -122,11 +123,11 @@ static void write_palette(uint8_t layer)
     uint8_t k = fade_k[layer];
     if (layer == 0)
         for (uint8_t i = 0; i < 5; i++) {
-            uint16_t c = aurora_wave[(uint8_t)(i * 2 + aurora_t) % AURORA_WAVE_N];
+            uint16_t c = aurora_waves[level_theme][(uint8_t)(i * 2 + aurora_t) % AURORA_WAVE_N];
             p->c[FAR_AURORA_FIRST + i] = k ? haze(c, k) : c;
         }
     if (layer == 1) {
-        uint16_t c = beacon ? MID_BEACON_ON : MID_BEACON_OFF;
+        uint16_t c = beacon ? mid_beacon_on[level_theme] : MID_BEACON_OFF;
         p->c[MID_BEACON_INDEX] = k ? haze(c, k) : c;
     }
     xram0_write(PAL_ADDR(pal_id[layer]), p, sizeof(palette_t));
@@ -163,11 +164,11 @@ static void door_tiles(uint8_t i, const uint8_t (*t)[DOOR_W])
 
 void bg_breach_door(uint8_t i)
 {
-    door_tiles(i, door_breached);
+    door_tiles(i, door_breached[level_theme]);
 }
 
 void bg_reset_doors(void)
 {
     for (uint8_t i = 0; i < NUM_COMPOUNDS; i++)
-        door_tiles(i, door_intact);
+        door_tiles(i, door_intact[level_theme]);
 }

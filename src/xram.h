@@ -171,16 +171,17 @@ typedef struct
 #define SPR_HOSTAGE_COUNT 16
 #define SPR_BALLOON_START (SPR_HOSTAGE_START + SPR_HOSTAGE_COUNT)
 #define SPR_BALLOON_COUNT 4
-#define SPR_JET_START (SPR_BALLOON_START + SPR_BALLOON_COUNT)
-#define SPR_JET_COUNT 2
-#define SPR_BOMB_START (SPR_JET_START + SPR_JET_COUNT)
+#define SPR_BOMB_START (SPR_BALLOON_START + SPR_BALLOON_COUNT)
 #define SPR_BOMB_COUNT 4
 #define SPR_EBULLET_START (SPR_BOMB_START + SPR_BOMB_COUNT)
 #define SPR_EBULLET_COUNT 8
 #define SPR_BULLET_START (SPR_EBULLET_START + SPR_EBULLET_COUNT)
 #define SPR_BULLET_COUNT 6
 #define SPR_CHOPPER (SPR_BULLET_START + SPR_BULLET_COUNT)
-#define SPR_EXPLOSION_START (SPR_CHOPPER + 1)
+/* The jet, or level 2's worm, in front of the chopper: a worm swallows it. */
+#define SPR_JET_START (SPR_CHOPPER + 1)
+#define SPR_JET_COUNT 2
+#define SPR_EXPLOSION_START (SPR_JET_START + SPR_JET_COUNT)
 #define SPR_EXPLOSION_COUNT 6
 #define SPR_SMALLEXP_START (SPR_EXPLOSION_START + SPR_EXPLOSION_COUNT)
 #define SPR_SMALLEXP_COUNT 8
@@ -227,9 +228,9 @@ typedef struct
     palette_t palettes[PAL_COUNT];
     uint8_t img_chopper[CHOPPER_FRAMES][CHOPPER_FRAME_BYTES];
     uint8_t img_hostages[HOSTAGES_FRAMES][HOSTAGES_FRAME_BYTES];
-    uint8_t img_tank[TANK_FRAMES][TANK_FRAME_BYTES];
-    uint8_t img_jet[JET_FRAMES][JET_FRAME_BYTES];
-    uint8_t img_balloon[BALLOON_FRAMES][BALLOON_FRAME_BYTES];
+    /* The level's enemies (level 1: tank, jet, balloon; level 2: jeep,
+     * turret, rocket, worm, mound), from its bank. */
+    uint8_t img_enemy[ENEMY_IMG_BYTES];
     uint8_t img_bomb[BOMB_FRAMES][BOMB_FRAME_BYTES];
     uint8_t img_bullet[BULLET_FRAMES][BULLET_FRAME_BYTES];
     uint8_t img_explosion[EXPLOSION_FRAMES][EXPLOSION_FRAME_BYTES];
@@ -240,6 +241,7 @@ typedef struct
     uint8_t img_gust[GUST_FRAMES][GUST_FRAME_BYTES];
     uint8_t img_logo[LOGO_PIECES][LOGO_PIECE_BYTES];
 
+    /* From the level's bank too, in one run: tiles, then maps. */
     uint8_t tiles_far[FAR_TILES][FAR_TILE_BYTES];
     uint8_t tiles_mid[MID_TILES][MID_TILE_BYTES];
     uint8_t tiles_fg[FG_TILES][FG_TILE_BYTES];
@@ -267,9 +269,15 @@ _Static_assert((XRAM_OPL & 0xFF) == 0, "The OPL2 registers must start on a page 
 
 #define XRAM_IMG_CHOPPER offsetof(xram_layout_t, img_chopper)
 #define XRAM_IMG_HOSTAGES offsetof(xram_layout_t, img_hostages)
-#define XRAM_IMG_TANK offsetof(xram_layout_t, img_tank)
-#define XRAM_IMG_JET offsetof(xram_layout_t, img_jet)
-#define XRAM_IMG_BALLOON offsetof(xram_layout_t, img_balloon)
+#define XRAM_IMG_ENEMY offsetof(xram_layout_t, img_enemy)
+#define XRAM_IMG_TANK (XRAM_IMG_ENEMY + TANK_OFS)
+#define XRAM_IMG_JET (XRAM_IMG_ENEMY + JET_OFS)
+#define XRAM_IMG_BALLOON (XRAM_IMG_ENEMY + BALLOON_OFS)
+#define XRAM_IMG_JEEP (XRAM_IMG_ENEMY + JEEP_OFS)
+#define XRAM_IMG_TURRET (XRAM_IMG_ENEMY + TURRET_OFS)
+#define XRAM_IMG_ROCKET (XRAM_IMG_ENEMY + ROCKET_OFS)
+#define XRAM_IMG_WORM (XRAM_IMG_ENEMY + WORM_OFS)
+#define XRAM_IMG_MOUND (XRAM_IMG_ENEMY + MOUND_OFS)
 #define XRAM_IMG_BOMB offsetof(xram_layout_t, img_bomb)
 #define XRAM_IMG_BULLET offsetof(xram_layout_t, img_bullet)
 #define XRAM_IMG_EXPLOSION offsetof(xram_layout_t, img_explosion)
@@ -287,6 +295,8 @@ _Static_assert((XRAM_OPL & 0xFF) == 0, "The OPL2 registers must start on a page 
 #define XRAM_MAP_MID offsetof(xram_layout_t, map_mid)
 #define XRAM_MAP_FG offsetof(xram_layout_t, map_fg)
 #define XRAM_SFX_DATA offsetof(xram_layout_t, sfx_data)
+/* The tiles and maps a level's bank fills, in one run. */
+#define XRAM_LEVEL_TILES_BYTES (XRAM_MAP_FG + sizeof(((xram_layout_t *)0)->map_fg) - XRAM_TILES_FAR)
 
 #define PAL_ADDR(p) (XRAM_PALETTES + (p) * sizeof(palette_t))
 
