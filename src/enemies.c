@@ -32,7 +32,7 @@
 #define TANK_SPEED ONE_PIXEL  /* chasing, or driving back into its zone */
 #define TANK_PATROL_SPEED 8   /* subpixels per frame */
 #define TANK_REBUILD 300      /* frames before a prison can roll out a replacement */
-#define TANK_FIRST_SHOT 90    /* frames a tank holds fire after coming into view (20 in the original) */
+#define TANK_FIRST_SHOT 40    /* frames a tank holds fire after coming into view (20 in the original) */
 #define TANK_FIRE_RANGE 120   /* px: it only fires at a chopper this close */
 #define TANK_SHELLS 3         /* in the air at once (2 in the original) */
 #define TANK_FIRE_CHANCE 4    /* percent a frame, once reloaded (2 in the original) */
@@ -53,8 +53,8 @@
 #define JET_TRIGGER 3         /* prisons opened (the original: 24 hostages out) */
 #define JET_WARN_TIME 90      /* frames of warning before a jet arrives */
 #define JET_GROUND_WAIT 120   /* frames landed before a bomber may come */
-#define JET_AIR_WAIT 240      /* frames up high before a fighter may come */
-#define JET_AIR_ZONE 75       /* "up high": chopper's top above this screen row */
+#define JET_AIR_WAIT 120      /* frames up high before a fighter may come */
+#define JET_AIR_ZONE 85       /* "up high": chopper's top above this screen row */
 #define JET_SPEED TO_SUB(4)
 #define JET_CLIMB 2           /* px per frame, leaving */
 #define JET_BOMBER_HEIGHT 80  /* px above landed height */
