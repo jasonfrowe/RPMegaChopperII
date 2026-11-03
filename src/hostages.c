@@ -29,8 +29,9 @@ hostage_t hostages[MAX_ACTIVE_HOSTAGES];
 #define WAVE_TIME 120        /* frames the last one waves at the door */
 
 /* Frames in hostages.png */
-#define HF_RUN 0 /* 0-3 */
-#define HF_WAVE 4 /* 4-5 */
+#define HF_RUN 0  /* 0-3: side-profile run cycle */
+#define HF_WAVE 4 /* 4-5: waving arms overhead */
+#define HF_IDLE 6 /* 6: standing idle (HFLIP scans left/right) */
 
 static uint8_t unload_timer;
 
@@ -196,11 +197,14 @@ void hostages_update(void)
             continue;
         }
 
+        bool near = player_alive() &&
+                    (abs(hx - ccx) < SIGHT_RANGE || abs(DOOR_X(h->home) + DOOR_W * 8 - ccx) < SIGHT_RANGE);
+
         switch (h->state) {
         case H_OUT:
             /* They see a low chopper near them, or near their own prison:
              * the ones waiting furthest out come too. */
-            if (low && (abs(hx - ccx) < SIGHT_RANGE || abs(DOOR_X(h->home) + DOOR_W * 8 - ccx) < SIGHT_RANGE)) {
+            if (low && near) {
                 /* Run for the chopper; climb aboard once it is down. */
                 if (walk(h, ccx) && landed && abs(hx - ccx) < BOARD_RANGE && cargo_count < MAX_CARGO) {
                     h->state = H_INACTIVE;
@@ -234,12 +238,35 @@ void hostages_update(void)
             break;
         }
 
-        /* Running frames while walking, waving frames while standing. */
+        /* Running while moving; waving when signalling the chopper or at the
+         * base door; standing idle (scanning left and right) while waiting. */
         if (h->state == H_WAVE) {
-            h->anim = (h->timer / 10) & 1;
-        } else if (++h->timer > 6) {
-            h->timer = 0;
-            h->anim = h->move ? (h->anim + 1) & 3 : !h->anim;
+            h->anim = HF_WAVE + ((h->timer / 10) & 1);
+        } else if (h->move) {
+            if (h->anim >= HF_WAVE) {
+                h->anim = HF_RUN;
+                h->timer = 0;
+            } else if (++h->timer > 6) {
+                h->timer = 0;
+                h->anim = HF_RUN + ((h->anim + 1) & 3);
+            }
+        } else if (near) {
+            if (h->anim < HF_WAVE || h->anim >= HF_IDLE) {
+                h->anim = HF_WAVE + (i & 1);
+                h->timer = (i * 5) & 7;
+            } else if (++h->timer > 9) {
+                h->timer = 0;
+                h->anim = HF_WAVE + ((h->anim - HF_WAVE) ^ 1);
+            }
+        } else {
+            if (h->anim != HF_IDLE) {
+                h->anim = HF_IDLE;
+                h->left = i & 1;
+                h->timer = (i * 7) & 15;
+            } else if (++h->timer > 24) {
+                h->timer = 0;
+                h->left = !h->left;
+            }
         }
     }
 }
@@ -253,8 +280,7 @@ void hostages_render(void)
             spr_hide(idx);
             continue;
         }
-        uint8_t f = h->move ? HF_RUN + h->anim : HF_WAVE + (h->anim & 1);
-        spr_place(idx, XRAM_IMG_HOSTAGES + f * HOSTAGES_FRAME_BYTES, PAL_HOSTAGE, WH(16, 16),
+        spr_place(idx, XRAM_IMG_HOSTAGES + h->anim * HOSTAGES_FRAME_BYTES, PAL_HOSTAGE, WH(16, 16),
                   h->left ? OPT4 : OPT4_FLIP, FROM_SUB(h->world_x - camera_x), HOSTAGE_Y);
     }
 }
