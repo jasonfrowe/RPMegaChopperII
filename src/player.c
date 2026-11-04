@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "game.h"
 #include "input.h"
+#include "level.h"
 #include "player.h"
 #include "projectiles.h"
 #include "sfx.h"
@@ -105,7 +106,10 @@ static void fire(void)
         /* One bomb at a time, one per press. */
         if (!(in_pressed & IN_FIRE) || bomb_in_air())
             return;
-        bomb_spawn(px + CHOPPER_W / 2 - 4, py + CHOPPER_H - 8, chopper_y < GROUND_Y_SUB - TO_SUB(BOMB_DEEP_HEIGHT));
+        /* On level 1 only a bomb dropped from high up reaches the tanks
+         * (the original's rule); on level 2 every bomb does. */
+        bool deep = level_theme != THEME_TUNDRA || chopper_y < GROUND_Y_SUB - TO_SUB(BOMB_DEEP_HEIGHT);
+        bomb_spawn(px + CHOPPER_W / 2 - 4, py + CHOPPER_H - 8, deep);
         sfx_player(SFX_BOMB_DROP, SFX_PRI_EVENT);
         return;
     }

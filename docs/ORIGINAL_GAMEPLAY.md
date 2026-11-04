@@ -231,11 +231,13 @@ sets each level's pace) keeps the rules above but swaps the enemies:
   after each prison is opened), but they don't patrol: each drives to a
   post 170 px from its prison, on its side, and waits there, parked, until
   the chopper comes within 180 px. Then it chases (1.5 px/frame, never out
-  of its zone), and goes back to its post 120 frames after losing it. They fire bursts of three machine-gun rounds, 5 frames apart,
+  of its zone), and goes back to its post 120 frames after losing it.
+  Every bomb reaches them, whatever height it is dropped from (level 1's
+  "only from high up" rule for tanks is off here). They fire bursts of three machine-gun rounds, 5 frames apart,
   straight at the chopper at 4 px/frame, which fly 25 frames (100 px),
   and only at a chopper within 100 px across and 100 px up. The
-  cannon kills one (anywhere on it, low over the ground), and so does a
-  deep bomb. 150 points.
+  cannon kills one (anywhere on it, low over the ground), and so does any
+  bomb. 150 points.
 - **Rocket turrets instead of the balloon.** One stands on the roof of
   each prison, over the door, and is manned once that prison is opened: a
   32x24 launcher on a sandbag ring, its beacon blinking slowly. It aims
@@ -248,10 +250,10 @@ sets each level's pace) keeps the rules above but swaps the enemies:
   which sweeps onto the chopper at 4 px/frame each way, locks on, blinks
   for 24 frames with a warning tone (the beacon blinking fast), and the
   launcher fires. Getting low before then breaks the lock. The rocket
-  leaves at about 1 px/frame and steers for the chopper's middle for
-  120 frames (changing speed by 1/16 px/frame each frame, at most
-  1.1 px/frame each way, under half the chopper's top speed), then flies
-  straight and burns out after 250 frames. At most two in the air; 90 to
+  leaves at 2.5 px/frame and steers for the chopper's middle for 60
+  frames (changing speed by 1/8 px/frame each frame, at most 2.5 px/frame
+  each way, the chopper's top speed), then flies straight and burns out
+  after 150 frames. At most two in the air; 90 to
   150 frames' reload. The cannon or a bomb wrecks a launcher (250
   points), rebuilt after 15 s; the cannon also shoots rockets down (50
   points).

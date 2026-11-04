@@ -826,8 +826,8 @@ static void turrets_init(void)
 
 /* Each aim (35 and 65 degrees): launch speeds, and where the tubes' mouths
  * are from the launcher's pivot, at (TURRET_W / 2 + 1, 13) in the sprite. */
-static const int8_t launch_vx[2] = {14, 7};
-static const int8_t launch_vy[2] = {-10, -15};
+static const int8_t launch_vx[2] = {33, 17};
+static const int8_t launch_vy[2] = {-23, -36};
 static const int8_t mouth_dx[2] = {14, 7};
 static const int8_t mouth_dy[2] = {-9, -14};
 

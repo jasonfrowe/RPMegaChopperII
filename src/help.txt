@@ -24,8 +24,9 @@ hostages are out. Later, jets bomb you if you sit on the ground too long,
 and shoot you if you stay up high too long.
 Sector 2, the lakes: jeeps instead of tanks wait until they see you,
 then chase, with machine guns that don't reach far up; the cannon kills
-them. Missile launchers on the prison roofs lock on and fire slow homing
-rockets if you fly up out of the jeeps' reach: get low, or outrun them. Sit on the ground too long and a
+them, and so does any bomb. Missile launchers on the prison roofs lock
+on and fire fast homing rockets if you fly up out of the jeeps' reach:
+get low before the lock, or turn hard. Sit on the ground too long and a
 worm tunnels toward you: lift off, or bomb its ridge. It eats hostages.
 After the last sector it goes round again, harder.
 Nothing attacks near the home base, east of the border flag. Now and
